@@ -218,6 +218,8 @@
 <!-- ============================ RESULTS ============================ -->
 <section id="results" class="hidden">
 
+  <div id="filingBanner"></div>
+
   <div class="card">
     <h2>Projected full year</h2>
     <p class="sub" id="projNote"></p>
@@ -280,7 +282,7 @@
   <label class="checkrow"><input type="checkbox" id="lead_cpa"> I'd like a CPA to review or file my return</label>
   <div id="lead_dates" class="note" style="margin:8px 0"></div>
   <div class="controls">
-    <button class="btn" id="leadBtn">Sign me up &rarr;</button>
+    <button class="btn" id="leadBtn">Get Reminders &rarr;</button>
     <span id="leadMsg" class="statusmsg" style="margin:0"></span>
   </div>
   <p class="note">Free. Your info is used only for the reminders / help you ask for. Standard text rates may apply.</p>
@@ -1340,6 +1342,16 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed){
   $('results').classList.remove('hidden');
   renderSESummary(inp, seInfo);
 
+  // Filing status drives the standard deduction and brackets, so keep it visible (and editable)
+  // right on the results — a wrong/leftover filing status was otherwise easy to miss.
+  const filingNames={mfj:'Married filing jointly',single:'Single',hoh:'Head of household',mfs:'Married filing separately'};
+  const filingOpts=Object.entries(filingNames).map(([v,n])=>`<option value="${v}"${v===filing?' selected':''}>${n}</option>`).join('');
+  $('filingBanner').innerHTML=`<div class="card" style="background:#eff6ff;border-color:#bfdbfe;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:0">
+    <div style="flex:0 0 auto"><label>Filing status used for this calculation</label>
+      <select id="filingQuick" style="max-width:280px">${filingOpts}</select></div>
+    <div class="sub" style="flex:1;min-width:220px;padding-bottom:9px">This sets your standard deduction &amp; tax brackets &mdash; everything below updates when you change it. Tax year ${TAX.year}.</div>
+  </div>`;
+
   // projection note + per-source rows
   const projecting = inp.sources.some(s=>s.mode==='project');
   $('projNote').textContent = projecting
@@ -1637,6 +1649,10 @@ seedAssumptions();
 showReminderDates();
 $('s_year').addEventListener('change', e=> setActiveYear(+e.target.value));
 $('s_filing').addEventListener('change', ()=>{ seedCaExempt(); formatInput($('a_ca_exempt')); });
+// The filing selector shown on the results mirrors Step 2 and recalculates immediately.
+document.addEventListener('change', e=>{ if(e.target.id==='filingQuick'){
+  $('s_filing').value=e.target.value; seedCaExempt(); formatInput($('a_ca_exempt')); calculate();
+}});
 // one uploader for everything (paystubs/W-2s + last year's 1040/540)
 (()=>{ const dz=$('docDz'), fi=$('docFile');
   dz.addEventListener('click', ()=>fi.click());
