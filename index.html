@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>W-2 Estimated Tax & Safe-Harbor Tool</title>
+<!--
+  W-2 Estimated Tax & Safe-Harbor Tool  (Fast Insights)
+  ------------------------------------------------------
+  Single self-contained file. Open in any browser. Nothing is uploaded:
+  paystubs/W-2s are read locally (pdf.js for PDFs, Tesseract.js for images).
+  Corrections and per-employer layouts are saved in this browser only.
+
+  WHAT IT DOES
+   1. Read one or more paystubs / W-2s (add a card per job or per spouse).
+   2. Each source: project a mid-year paystub, use YTD as-is, or enter a
+      final W-2's annual totals. You correct any field; layouts are remembered.
+   3. Aggregate all sources into one FEDERAL and one CALIFORNIA estimate.
+   4. Show 90% / 100% / 110% safe-harbor options, which controls and WHY.
+   5. Tell you the refund (if over-withheld) or shortfall, how much to ADD or
+      REDUCE per paycheck, and the estimated-tax payment dates & amounts.
+
+  ESTIMATE ONLY — not tax or legal advice. Tax constants are editable below.
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root{--bg:#0f172a;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;
+    --accent:#2563eb;--good:#16a34a;--warn:#d97706;--bad:#dc2626;--soft:#f8fafc;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:#f1f5f9;line-height:1.45;font-size:15px}
+  header{background:var(--bg);color:#fff;padding:12px 24px;position:sticky;top:0;z-index:50;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  header .hdr-text{min-width:0}
+  header h1{margin:0;font-size:18px}
+  header p{margin:3px 0 0;color:#cbd5e1;font-size:12.5px}
+  header .hdr-actions{flex:0 0 auto;display:flex;gap:8px;align-items:center}
+  header .hdr-actions button{font-size:15px;padding:10px 18px}
+  .btn.outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45)}
+  .btn.outline:hover{background:rgba(255,255,255,.1)}
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;
+    justify-content:center;z-index:200;padding:16px}
+  .modal-overlay.hidden{display:none}
+  .modal-box{background:#fff;border-radius:14px;padding:24px;max-width:430px;width:100%;text-align:center;
+    box-shadow:0 24px 60px rgba(0,0,0,.35)}
+  .modal-box h3{margin:0 0 8px;font-size:18px}
+  .modal-box p{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.5}
+  .modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  main{max-width:1060px;margin:0 auto;padding:20px 16px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;margin:16px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card h2{margin:0 0 4px;font-size:16px}
+  .card h2 .step{display:inline-block;background:var(--accent);color:#fff;border-radius:50%;
+    width:22px;height:22px;text-align:center;line-height:22px;font-size:13px;margin-right:8px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.02em}
+  input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+    font-size:15px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:2px solid #bfdbfe;border-color:var(--accent)}
+  input.num{text-align:right;font-variant-numeric:tabular-nums}
+  /* green = a value is entered; red = empty or 0 (information still needed) */
+  input.num.filled{color:#15803d;font-weight:600;border-color:#86efac;background:#f0fdf4}
+  input.num.needed{color:#b91c1c;border-color:#fecaca;background:#fef2f2}
+  input.num.filled:focus,input.num.needed:focus{background:#fff}
+  .row{margin-bottom:12px}
+  /* in grids, give labels a uniform height (bottom-aligned) so the input boxes line up
+     across a row even when some labels wrap to two lines */
+  .grid>.row{margin-bottom:0}
+  .grid>.row>label{min-height:2.9em;display:flex;align-items:flex-end}
+  button{cursor:pointer;border:none;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600}
+  .btn{background:var(--accent);color:#fff}
+  .btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .btn.ghost{background:#eef2ff;color:var(--accent)}
+  .btn.danger{background:#fff;color:var(--bad);border:1px solid #fecaca}
+  .btn.recalc{background:#ea580c}  /* orange: inputs changed, results are stale */
+  .dropzone{border:2px dashed #cbd5e1;border-radius:10px;padding:18px;text-align:center;
+    color:var(--muted);background:var(--soft);cursor:pointer;font-size:13px}
+  .dropzone.drag{border-color:var(--accent);background:#eff6ff}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .num{font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .pill.good{background:#dcfce7;color:#166534}.pill.warn{background:#fef3c7;color:#92400e}
+  .pill.bad{background:#fee2e2;color:#991b1b}.pill.info{background:#dbeafe;color:#1e40af}
+  .resultcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .rc{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff}
+  .rc h3{margin:0 0 2px;font-size:15px}
+  .rc .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;margin:6px 0}
+  .rc .line{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-top:1px dashed var(--line)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .note{font-size:12.5px;color:var(--muted);background:var(--soft);border-left:3px solid #cbd5e1;
+    padding:8px 12px;border-radius:6px;margin:8px 0}
+  .note.good{border-left-color:var(--good)}.note.bad{border-left-color:var(--bad)}.note.warn{border-left-color:var(--warn)}
+  details{margin-top:10px}summary{cursor:pointer;font-weight:600;color:var(--accent);font-size:14px}
+  .breakdown{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+    background:#0f172a;color:#e2e8f0;border-radius:8px;padding:14px;overflow-x:auto;white-space:pre}
+  .disclaimer{font-size:12px;color:var(--muted);text-align:center;margin-top:24px}
+  .hidden{display:none}
+  .statusmsg{font-size:13px;color:var(--accent);margin-top:8px;min-height:18px}
+  .assume td input{padding:5px 7px;font-size:13px}
+  .estpay td:first-child,.estpay th:first-child{white-space:nowrap}
+  /* consistent blue header for any expand/collapse section */
+  summary.collapse-head{list-style:none;display:flex;align-items:center;gap:8px;
+    font-size:15px;font-weight:700;color:var(--accent);cursor:pointer;padding:2px 0}
+  summary.collapse-head::-webkit-details-marker{display:none}
+  summary.collapse-head::before{content:'\25B8';font-size:11px}
+  details[open]>summary.collapse-head::before{content:'\25BE'}
+  summary.collapse-head .rm{margin-left:auto}
+  .source{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0;background:#fcfdff}
+  .source-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+  .source-head strong{font-size:15px}
+  label.checkrow{display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;
+    color:var(--ink);font-size:14px;margin:8px 0;letter-spacing:0}
+  label.checkrow input{width:auto}
+  .cta{background:linear-gradient(180deg,#eff6ff,#fff);border-color:#bfdbfe;scroll-margin-top:80px}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr-text">
+    <h1>W-2 Estimated Tax &amp; Safe-Harbor Tool</h1>
+    <p><strong>Tax year <span id="hdrYear">2026</span></strong> &middot; Read your paystubs / W-2s &rarr; project the year &rarr; refund or shortfall, the 90/100/110% targets, per-paycheck adjustment, and payment due dates. Federal + California. Estimate only.</p>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn outline" id="demoBtn">Demo</button>
+    <button class="btn outline" id="toggleAllBtn">Expand all</button>
+    <button class="btn outline" id="downloadBtn">Download</button>
+    <button class="btn outline" id="leadShowBtnHdr">Get Reminders</button>
+    <button class="btn calc-btn" id="calcBtnTop">Calculate &rarr;</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================ STEP 1: SOURCES ============================ -->
+<section class="card">
+  <h2><span class="step">1</span>Upload your documents</h2>
+  <p class="sub">Drop everything here &mdash; paystubs, W-2s, <strong>1099-NECs</strong>, in-year <strong>earnings statements</strong> (Uber, Lyft, etc.), and last year's 1040 &amp; CA 540. Read locally; nothing is uploaded. We sort each file: paystubs/W-2s &rarr; income sources, 1099s &amp; gig statements &rarr; self-employment income (they add up across the year), returns &rarr; the prior-year fields in Step 2.</p>
+  <div class="dropzone" id="docDz">Click or drag your documents here (PDF, PNG, JPG) &mdash; paystubs, W-2s, 1099-NEC, Uber/Lyft statements, 1040, 540
+    <input type="file" id="docFile" accept=".pdf,image/*" multiple class="hidden"></div>
+  <div id="docStatus" class="statusmsg"></div>
+  <h3 style="font-size:14px;margin:16px 0 6px">Income sources (paystubs / W-2s)</h3>
+  <div id="sourcesList"></div>
+  <button class="btn secondary" id="addSourceBtn">+ Add an income source manually</button>
+</section>
+
+<!-- ====================== SELF-EMPLOYMENT / 1099 ====================== -->
+<section class="card">
+  <details id="se_details">
+  <summary class="collapse-head">Self-employment / 1099 income (independent contractor)</summary>
+  <p class="sub" style="margin-top:8px">Optional &mdash; leave empty if none. Add a card per payer (Uber, DoorDash, a client, etc.). 1099 income has <strong>no withholding</strong>, so it usually means estimated payments. We total your net profit, self-employment (SE) tax, and roll both into the federal &amp; California estimate below.</p>
+  <div id="seList"></div>
+  <button class="btn secondary" id="addSeBtn">+ Add a 1099 / self-employment payer</button>
+  <div class="grid" style="margin-top:12px">
+    <div class="row"><label>W-2 wages already taxed for Social Security &mdash; same person (optional)</label><input class="num money" id="se_w2ss" value="0"></div>
+  </div>
+  <p class="note">Net profit = gross + tips &minus; expenses &minus; mileage (miles &times; the 2026 standard rate), summed across payers. SE tax = 15.3% on 92.35% of net profit (12.4% Social Security up to the wage base + 2.9% Medicare); half is deducted from income. The W-2 field only matters if the <em>same person</em> with the 1099 also has a W-2 &mdash; it lowers the Social Security portion. California has no separate SE tax, but the net profit is still CA taxable income.</p>
+  <div id="se_summary" class="note"></div>
+  </details>
+</section>
+
+<!-- ============================ STEP 2: SETTINGS ============================ -->
+<section class="card">
+  <details>
+  <summary class="collapse-head"><span class="step">2</span>Prior tax return information
+    <button class="btn danger rm" id="clearPriorBtn" title="Remove">Remove</button></summary>
+  <p class="sub" style="margin-top:8px">A few facts the paystub can't tell us. Last year's numbers come from your prior return (Form 1040 / CA 540).</p>
+  <div class="grid">
+    <div class="row">
+      <label>Tax year</label>
+      <select id="s_year"><option value="2026" selected>2026</option></select>
+    </div>
+    <div class="row">
+      <label>Filing status</label>
+      <select id="s_filing">
+        <option value="mfj" selected>Married filing jointly</option>
+        <option value="single">Single</option>
+        <option value="hoh">Head of household</option>
+        <option value="mfs">Married filing separately</option>
+      </select>
+    </div>
+    <div class="row"><label>Other taxable income (non-wage, optional)</label><input class="num money" id="s_otherincome" value="0" /></div>
+  </div>
+  <div class="grid">
+    <div class="row"><label>Last year's TOTAL federal tax (1040 line 22)</label><input class="num money" id="s_pyfed" value="0" /></div>
+    <div class="row"><label>Last year's TOTAL CA tax (540 line 64)</label><input class="num money" id="s_pyca" value="0" /></div>
+    <div class="row"><label>Last year's AGI (1040 line 11)</label><input class="num money" id="s_pyagi" value="0" /></div>
+  </div>
+  <p class="note">Leave last year's numbers at 0 if you don't have them yet &mdash; the tool will just use the <strong>90% of this year</strong> safe harbor. Fill them in to unlock the usually-cheaper <strong>100% / 110% of last year</strong> option.</p>
+
+  <details>
+    <summary class="collapse-head">Estimated payments already made this year (optional)</summary>
+    <p class="sub" style="margin-top:8px">Quarterly 1040-ES (federal) and 540-ES (California) payments you've already sent. These add to what you've paid in, lowering the balance due and what's left to pay.</p>
+    <table class="estpay" style="max-width:560px">
+      <thead><tr><th>Quarter</th><th>Federal (1040-ES)</th><th>California (540-ES)</th></tr></thead>
+      <tbody>
+        <tr><td>Q1 — Apr 15</td><td><input class="num opt" id="est_fed_q1" value="0"></td><td><input class="num opt" id="est_ca_q1" value="0"></td></tr>
+        <tr><td>Q2 — Jun 15</td><td><input class="num opt" id="est_fed_q2" value="0"></td><td><input class="num opt" id="est_ca_q2" value="0"></td></tr>
+        <tr><td>Q3 — Sep 15</td><td><input class="num opt" id="est_fed_q3" value="0"></td><td><input class="num opt" id="est_ca_q3" value="0"></td></tr>
+        <tr><td>Q4 — Jan 15</td><td><input class="num opt" id="est_fed_q4" value="0"></td><td><input class="num opt" id="est_ca_q4" value="0"></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <div class="controls">
+    <button class="btn ghost" id="selftestBtn">Run self-test</button>
+    <span id="selftestMsg" class="statusmsg" style="margin:0"></span>
+  </div>
+  </details>
+</section>
+
+<!-- ============================ RESULTS ============================ -->
+<section id="results" class="hidden">
+
+  <div class="card">
+    <h2>Projected full year</h2>
+    <p class="sub" id="projNote"></p>
+    <table>
+      <thead><tr><th>Source</th><th>Wages</th><th>Federal tax withheld</th><th>CA tax withheld</th></tr></thead>
+      <tbody id="sourceRows"></tbody>
+      <tbody style="font-weight:700"><tr>
+        <td>Total (full-year projected)</td>
+        <td class="num" id="r_fy_wages"></td><td class="num" id="r_fy_fed"></td><td class="num" id="r_fy_ca"></td>
+      </tr></tbody>
+    </table>
+  </div>
+
+  <div class="resultcards">
+    <div class="rc" id="card_federal"></div>
+    <div class="rc" id="card_ca"></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary id="bracketsTitle" class="collapse-head">2026 tax brackets &mdash; your marginal-rate math</summary>
+      <p class="sub" style="margin-top:8px">First we work down from your income to <strong>AGI</strong> and then <strong>taxable income</strong>; then tax is <strong>progressive</strong> &mdash; each slice of taxable income is taxed at its own 2026 rate, not your whole income at the top rate. Here's how the projected tax on the cards above is built up.</p>
+      <h3 style="margin:8px 0 4px;font-size:14px">Federal</h3>
+      <div id="bracket_fed"></div>
+      <h3 style="margin:18px 0 4px;font-size:14px">California</h3>
+      <div id="bracket_ca"></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Bottom line: refund or adjust</h2>
+    <div id="bottomline"></div>
+  </div>
+
+  <div class="card">
+    <h2>If you pay estimated taxes instead: when &amp; how much</h2>
+    <div id="schedule"></div>
+  </div>
+
+  <div class="card">
+    <h2>Show the math</h2>
+    <p class="sub">Every number above, step by step, so it can be checked.</p>
+    <details><summary class="collapse-head">Federal worksheet</summary><div class="breakdown" id="bd_fed"></div></details>
+    <details><summary class="collapse-head">California worksheet</summary><div class="breakdown" id="bd_ca"></div></details>
+  </div>
+</section>
+
+<!-- ============================ CTA / LEAD CAPTURE ============================ -->
+<section class="card cta" id="reminders">
+  <h2>Never miss a quarterly payment &mdash; free reminders</h2>
+  <p class="sub">We'll <strong>email and text you every day</strong> in the run-up to each estimated-tax due date so you never miss it. Rather hand it off? Ask a CPA to review or file for you.</p>
+  <div id="leadForm">
+  <div class="grid">
+    <div class="row"><label>First name</label><input id="lead_first"></div>
+    <div class="row"><label>Last name</label><input id="lead_last"></div>
+    <div class="row"><label>Email</label><input id="lead_email" type="email" inputmode="email"></div>
+    <div class="row"><label>Mobile phone (for text reminders)</label><input id="lead_phone" type="tel" inputmode="tel"></div>
+  </div>
+  <label class="checkrow"><input type="checkbox" id="lead_remind" checked> Email + text me every day until each quarterly due date</label>
+  <label class="checkrow"><input type="checkbox" id="lead_cpa"> I'd like a CPA to review or file my return</label>
+  <div id="lead_dates" class="note" style="margin:8px 0"></div>
+  <div class="controls">
+    <button class="btn" id="leadBtn">Sign me up &rarr;</button>
+    <span id="leadMsg" class="statusmsg" style="margin:0"></span>
+  </div>
+  <p class="note">Free. Your info is used only for the reminders / help you ask for. Standard text rates may apply.</p>
+  </div>
+</section>
+
+<!-- ============================ ASSUMPTIONS ============================ -->
+<section class="card">
+  <h2>Assumptions &amp; tax constants</h2>
+  <p class="sub">Editable so you can keep them current or match an exact return. Sources noted; verify before relying on them.</p>
+  <details>
+    <summary id="assumeTitle" class="collapse-head">2026 federal &amp; California figures used</summary>
+    <div style="margin-top:10px">
+      <table class="assume">
+        <thead><tr><th id="assumeStdHdr">Standard deduction (2026)</th><th>Federal</th><th>California</th></tr></thead>
+        <tbody>
+          <tr><td>Single / MFS</td><td><input class="num money" id="a_fed_std_single"></td><td><input class="num money" id="a_ca_std_single"></td></tr>
+          <tr><td>Married filing jointly</td><td><input class="num money" id="a_fed_std_mfj"></td><td><input class="num money" id="a_ca_std_mfj"></td></tr>
+          <tr><td>Head of household</td><td><input class="num money" id="a_fed_std_hoh"></td><td><input class="num money" id="a_ca_std_hoh"></td></tr>
+        </tbody>
+      </table>
+      <div class="grid" style="margin-top:10px">
+        <div class="row"><label>CA exemption credit (per return)</label><input class="num money" id="a_ca_exempt"></div>
+        <div class="row"><label>Federal "high income" 110% AGI threshold</label><input class="num money" id="a_fed_110thr"></div>
+        <div class="row"><label>CA "high income" 110% AGI threshold</label><input class="num money" id="a_ca_110thr"></div>
+      </div>
+      <p class="note" style="margin-top:10px">
+        <strong>Federal</strong> brackets &amp; standard deductions: IRS Rev. Proc. 2025-32 (2026 tax year).
+        <strong>California</strong>: latest published FTB rate schedule &amp; standard deduction (2025 tax year) used as a 2026 proxy &mdash; CA publishes official 2026 brackets later in the year; replace with exact figures when available.
+        Safe-harbor rules: IRS &sect;6654 and CA FTB Form 540-ES instructions.
+      </p>
+    </div>
+  </details>
+</section>
+
+<p class="disclaimer">
+  This tool produces an <strong>estimate only</strong> and is not tax or legal advice. It does not handle every situation
+  (credits, AMT, capital gains, multiple states, itemized deductions beyond the standard, etc.).
+  Verify all figures against the IRS, the California FTB, and your own tax return or advisor before acting.
+</p>
+
+</main>
+
+<!-- Choose download format -->
+<div id="downloadModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Download summary</h3>
+    <p>Choose a format &mdash; <strong>PDF</strong> or <strong>CSV</strong>. It includes what you owe, what to pay, and the payment schedule.</p>
+    <div class="modal-actions">
+      <button class="btn" id="dlPdfBtn">PDF</button>
+      <button class="btn" id="dlCsvBtn">CSV</button>
+      <button class="btn secondary" id="dlCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt to calculate after an upload -->
+<div id="uploadModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Documents loaded &#10003;</h3>
+    <p id="uploadModalMsg">Your info was added. Click <strong>Calculate</strong> to see your estimated taxes &mdash; what you owe and what to pay.</p>
+    <div class="modal-actions">
+      <button class="btn" id="modalCalcBtn">Calculate now &rarr;</button>
+      <button class="btn secondary" id="modalCloseBtn">Keep editing</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   TAX CONSTANTS — keyed by tax year so the tool rolls forward each year.
+   TO ADD A NEW YEAR: copy the 2026 block to a new `<year>: buildTaxYear(<year>, {…})`
+   entry with that year's IRS + CA FTB numbers. The tax-year dropdown, the header,
+   the "<year> tax brackets" section, and the Assumptions panel all relabel
+   themselves automatically from the selected year — no other edits needed.
+   (Brackets are entered by hand each year; the IRS/FTB publish them annually.
+   Auto-fetching them would require a backend.)
+   ===================================================================== */
+function buildTaxYear(year, d){
+  d.ca.brackets.hoh = d.ca.brackets.single;     // CA HoH approximated by single schedule
+  d.ca.brackets.mfs = d.ca.brackets.single;     // CA MFS = single thresholds (correct)
+  // Federal MFS brackets are the MFJ widths halved (exact).
+  d.federal.brackets.mfs = d.federal.brackets.mfj.map(b=>({upTo:b.upTo===Infinity?Infinity:b.upTo/2, rate:b.rate}));
+  return Object.assign({year}, d);
+}
+const TAX_BY_YEAR = {
+  2026: buildTaxYear(2026, {
+  federal: {
+    // IRS Rev. Proc. 2025-32 (2026 tax year). {upTo, rate}; last upTo=Infinity.
+    brackets: {
+      single:[{upTo:12400,rate:.10},{upTo:50400,rate:.12},{upTo:105700,rate:.22},
+        {upTo:201775,rate:.24},{upTo:256225,rate:.32},{upTo:640600,rate:.35},{upTo:Infinity,rate:.37}],
+      mfj:[{upTo:24800,rate:.10},{upTo:100800,rate:.12},{upTo:211400,rate:.22},
+        {upTo:403550,rate:.24},{upTo:512450,rate:.32},{upTo:768700,rate:.35},{upTo:Infinity,rate:.37}],
+      hoh:[{upTo:17700,rate:.10},{upTo:67450,rate:.12},{upTo:105700,rate:.22},
+        {upTo:201775,rate:.24},{upTo:256200,rate:.32},{upTo:640600,rate:.35},{upTo:Infinity,rate:.37}],
+    },
+    std:{single:16100,mfj:32200,hoh:24150,mfs:16100},
+    safeHarborPYthreshold:150000, safeHarborPYthresholdMFS:75000, deMinimis:1000,
+    // 0.9% Additional Medicare tax (statutory, not indexed) on wages + SE income over threshold.
+    addlMedicare:{rate:0.009, thresholds:{single:200000, mfj:250000, mfs:125000, hoh:200000}},
+  },
+  ca: {
+    // Latest published FTB schedule (2025 tax year) used as 2026 proxy.
+    brackets: {
+      single:[{upTo:11079,rate:.01},{upTo:26264,rate:.02},{upTo:41452,rate:.04},
+        {upTo:57542,rate:.06},{upTo:72724,rate:.08},{upTo:371479,rate:.093},
+        {upTo:445771,rate:.103},{upTo:742953,rate:.113},{upTo:Infinity,rate:.123}],
+      mfj:[{upTo:22158,rate:.01},{upTo:52528,rate:.02},{upTo:82904,rate:.04},
+        {upTo:115084,rate:.06},{upTo:145448,rate:.08},{upTo:742958,rate:.093},
+        {upTo:891542,rate:.103},{upTo:1485906,rate:.113},{upTo:Infinity,rate:.123}],
+    },
+    std:{single:5706,mfj:11412,hoh:11412,mfs:5706},
+    exemptionCredit:{single:149,mfj:298,hoh:149,mfs:149},
+    mentalHealthThreshold:1000000, mentalHealthRate:.01,
+    safeHarborPYthreshold:150000, safeHarborPYthresholdMFS:75000,
+    highIncomeNoPY:1000000, deMinimis:500,
+  },
+  // Self-employment (Schedule SE) — 2026. SS wage base: SSA 2026. Mileage: IRS Notice 2026-10.
+  se: { ssWageBase:184500, mileageRate:0.725, netEarningsFactor:0.9235,
+        ssRate:0.124, medicareRate:0.029, minNetForSE:400 }
+  }),
+};
+const AVAILABLE_YEARS = Object.keys(TAX_BY_YEAR).map(Number).sort((a,b)=>a-b);
+// Active year = current calendar year if its data exists, else the latest available.
+function defaultTaxYear(){ const c=new Date().getFullYear(); return TAX_BY_YEAR[c] ? c : AVAILABLE_YEARS[AVAILABLE_YEARS.length-1]; }
+let TAX = TAX_BY_YEAR[defaultTaxYear()];
+function setActiveYear(y){ if(TAX_BY_YEAR[+y]){ TAX=TAX_BY_YEAR[+y]; seedAssumptions(); applyYearLabels(); showReminderDates(); } }
+function applyYearLabels(){
+  const y=TAX.year;
+  if($('hdrYear')) $('hdrYear').textContent=y;
+  if($('bracketsTitle')) $('bracketsTitle').innerHTML=y+' tax brackets &mdash; your marginal-rate math';
+  if($('assumeTitle')) $('assumeTitle').textContent=y+' federal & California figures used';
+  if($('assumeStdHdr')) $('assumeStdHdr').textContent='Standard deduction ('+y+')';
+}
+function populateYears(){
+  const sel=$('s_year'); if(!sel) return; sel.innerHTML='';
+  for(const y of AVAILABLE_YEARS.slice().reverse()){
+    const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o);
+  }
+  sel.value=TAX.year;
+}
+
+/* =====================================================================
+   PURE TAX FUNCTIONS (no DOM; easy to audit & self-test)
+   ===================================================================== */
+function bracketTax(taxable, brackets){
+  if(taxable<=0) return 0;
+  let tax=0, lower=0;
+  for(const b of brackets){
+    const slice=Math.min(taxable,b.upTo)-lower;
+    if(slice>0) tax+=slice*b.rate;
+    if(taxable<=b.upTo) break;
+    lower=b.upTo;
+  }
+  return tax;
+}
+// Per-bracket breakdown for display: returns only the brackets that apply, with
+// the income taxed in each and the tax on it. Sums to bracketTax(taxable).
+function bracketBreakdown(taxable, brackets){
+  const rows=[]; let lower=0;
+  for(const b of brackets){
+    if(taxable<=lower) break;
+    const top=Math.min(taxable, b.upTo);
+    rows.push({rate:b.rate, lower, top, amount:top-lower, tax:(top-lower)*b.rate});
+    if(taxable<=b.upTo) break;
+    lower=b.upTo;
+  }
+  return rows;
+}
+// Project full-year amount: YTD + remaining periods at current rate ('ytd' = no projection).
+function projectAmount(ytd, perPeriod, periodsLeft, basis){
+  return basis==='ytd' ? ytd : ytd + perPeriod*periodsLeft;
+}
+// Pay periods already paid, inferred from salary YTD / per-paycheck salary (most reliable).
+function periodsElapsed(salaryYtd, salaryCur, payDate, periodsPerYear){
+  if(salaryCur>0 && salaryYtd>0) return Math.max(1, Math.round(salaryYtd/salaryCur));
+  const d=parseDate(payDate);
+  if(d){ const start=new Date(d.getFullYear(),0,1);
+    const frac=(d-start)/(1000*60*60*24*365); return Math.max(1,Math.round(frac*periodsPerYear)); }
+  return Math.round(periodsPerYear/2);
+}
+function federalTax(agi, std, brackets, addl){
+  const deduction=std+(addl||0); const taxable=Math.max(0,agi-deduction);
+  return {agi, deduction, taxable, tax:bracketTax(taxable,brackets)};
+}
+function californiaTax(caAgi, std, brackets, exemptionCredit, mhThr, mhRate){
+  const taxable=Math.max(0,caAgi-std);
+  let tax=bracketTax(taxable,brackets);
+  const mentalHealth = caAgi>mhThr ? (caAgi-mhThr)*mhRate : 0;
+  tax+=mentalHealth;
+  return {caAgi, std, taxable, taxBeforeCredit:tax, exemptionCredit, mentalHealth,
+    tax:Math.max(0, tax-(exemptionCredit||0))};
+}
+// Self-employment tax (Schedule SE). The 12.4% Social Security portion is capped
+// at the SS wage base, reduced by W-2 wages already taxed for Social Security (same
+// person). The 2.9% Medicare portion is uncapped. Half of the total is deductible.
+function selfEmploymentTax(netProfit, w2SocialSecurityWages, se){
+  if(netProfit < se.minNetForSE)
+    return {netProfit, seBase:0, ssPortion:0, medicarePortion:0, tax:0, halfDeduction:0};
+  const seBase = netProfit * se.netEarningsFactor;                 // 92.35%
+  const ssRoom = Math.max(0, se.ssWageBase - (w2SocialSecurityWages||0));
+  const ssPortion = Math.min(seBase, ssRoom) * se.ssRate;         // 12.4% up to remaining base
+  const medicarePortion = seBase * se.medicareRate;               // 2.9%, no cap
+  const tax = ssPortion + medicarePortion;
+  return {netProfit, seBase, ssPortion, medicarePortion, tax, halfDeduction: tax/2};
+}
+
+// 0.9% Additional Medicare tax (Form 8959): on combined Medicare wages + SE earnings
+// base over the filing threshold. Not deductible.
+function additionalMedicareTax(medicareWages, seBase, filing, cfg){
+  const thr = cfg.thresholds[filing] ?? cfg.thresholds.single;
+  return cfg.rate * Math.max(0, (medicareWages||0) + (seBase||0) - thr);
+}
+
+// Safe-harbor analysis for one jurisdiction. Returns options, controlling target,
+// shortfall, refund/balance, de-minimis flag.
+function safeHarbor(projectedTax, priorTax, priorAgi, withholding, opts){
+  const o90=0.90*projectedTax;
+  const thr=opts.isMFS?opts.pyThresholdMFS:opts.pyThreshold;
+  const pyMultiplier = priorAgi>thr ? 1.10 : 1.00;
+  const o100=priorTax, o110=1.10*priorTax, priorYearTarget=priorTax*pyMultiplier;
+  let priorAvailable = priorTax>0, highIncomeBlocked=false;
+  if(opts.highIncomeNoPY && priorAgi>=opts.highIncomeNoPY){ priorAvailable=false; highIncomeBlocked=true; }
+  let required, controllingLabel;
+  if(priorAvailable && priorYearTarget<=o90){ required=priorYearTarget; controllingLabel=(pyMultiplier===1.10?'110%':'100%')+' of last year'; }
+  else { required=o90; controllingLabel='90% of this year'; }
+  const balanceDue = projectedTax - withholding;     // >0 owe, <0 refund
+  return {
+    projectedTax, priorTax, priorAgi, withholding, balanceDue,
+    refund: balanceDue<0 ? -balanceDue : 0,
+    o90, o100, o110, pyMultiplier, highIncomeBlocked,
+    required, controllingLabel,
+    shortfallVsSafe: Math.max(0, required-withholding),
+    shortfallVsFull: Math.max(0, projectedTax-withholding),
+    deMinimis: balanceDue < opts.deMinimis, deMinimisThreshold:opts.deMinimis, pyThreshold:thr,
+  };
+}
+// Upcoming estimated-tax due dates with each installment's share of an amount.
+//   kind 'fed' -> 25/25/25/25 on Apr15/Jun15/Sep15/Jan15
+//   kind 'ca'  -> 30/40/0/30 on Apr15/Jun15/(none)/Jan15  (front-loaded)
+function estSchedule(year, today, kind, amount){
+  const mk=(y,m,d,w)=>({date:new Date(y,m,d), w,
+    label:new Date(y,m,d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})});
+  const all = kind==='fed'
+    ? [mk(year,3,15,.25),mk(year,5,15,.25),mk(year,8,15,.25),mk(year+1,0,15,.25)]
+    : [mk(year,3,15,.30),mk(year,5,15,.40),mk(year+1,0,15,.30)];
+  const up = all.filter(x=> x.date>=today);
+  const tot = up.reduce((s,x)=>s+x.w,0) || 1;
+  return up.map(x=> ({label:x.label, amount: amount*(x.w/tot)}));
+}
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+function num(v){ if(v==null) return 0; const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
+function money(n){ return (n<0?'-':'')+'$'+Math.abs(Math.round(n)).toLocaleString('en-US'); }
+function money2(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function parseDate(s){ const m=String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(!m) return null;
+  let y=+m[3]; if(y<100) y+=2000; return new Date(y,+m[1]-1,+m[2]); }
+function val(id){ const el=$(id); return el?el.value:''; }
+function nval(id){ return num(val(id)); }
+
+/* Number-format + color-cue for numeric inputs:
+   green when a value is entered, red when empty/0 (information still needed). */
+function colorize(el){
+  if(el.classList.contains('opt')){          // optional fields: green only for a real (>0) amount, never red
+    el.classList.toggle('filled', num(el.value) > 0);
+    el.classList.remove('needed');
+    return;
+  }
+  const filled = el.value.trim() !== '';   // any entry counts (including 0); only blank = needed
+  el.classList.toggle('filled', filled);
+  el.classList.toggle('needed', !filled);
+}
+function formatInput(el){            // group with commas, keep up to 2 decimals
+  const raw = el.value.replace(/,/g,'').trim();
+  const dec = el.classList.contains('int') ? 0 : 2;   // counts render as whole numbers
+  if(raw!=='' && !isNaN(parseFloat(raw)))
+    el.value = num(raw).toLocaleString('en-US',{minimumFractionDigits:dec, maximumFractionDigits:dec});
+  colorize(el);
+}
+function formatAll(){
+  document.querySelectorAll('input.num').forEach(el=>{ el.setAttribute('inputmode','decimal'); formatInput(el); });
+}
+/* Turn the Calculate button orange when inputs change. `force` (used on upload)
+   highlights it even before the first calculation. */
+function markDirty(force){
+  const hidden=$('results').classList.contains('hidden');
+  if(!force && hidden) return;
+  document.querySelectorAll('.calc-btn').forEach(b=>{
+    b.classList.add('recalc'); b.textContent = hidden ? 'Calculate →' : 'Recalculate ↻'; });
+}
+function clearDirty(){ document.querySelectorAll('.calc-btn').forEach(b=>{ b.classList.remove('recalc'); b.textContent='Calculate →'; }); }
+
+/* =====================================================================
+   ASSUMPTIONS PANEL
+   ===================================================================== */
+// CA personal exemption credit depends on filing status (single/HoH/MFS = 1 exemption, MFJ = 2).
+function seedCaExempt(){ if($('a_ca_exempt')) $('a_ca_exempt').value = TAX.ca.exemptionCredit[val('s_filing')] ?? TAX.ca.exemptionCredit.single; }
+function seedAssumptions(){
+  $('a_fed_std_single').value=TAX.federal.std.single; $('a_fed_std_mfj').value=TAX.federal.std.mfj;
+  $('a_fed_std_hoh').value=TAX.federal.std.hoh;
+  $('a_ca_std_single').value=TAX.ca.std.single; $('a_ca_std_mfj').value=TAX.ca.std.mfj;
+  $('a_ca_std_hoh').value=TAX.ca.std.hoh;
+  seedCaExempt();
+  $('a_fed_110thr').value=TAX.federal.safeHarborPYthreshold;
+  $('a_ca_110thr').value=TAX.ca.safeHarborPYthreshold;
+}
+function readAssumptions(){
+  TAX.federal.std.single=nval('a_fed_std_single'); TAX.federal.std.mfs=nval('a_fed_std_single');
+  TAX.federal.std.mfj=nval('a_fed_std_mfj'); TAX.federal.std.hoh=nval('a_fed_std_hoh');
+  TAX.ca.std.single=nval('a_ca_std_single'); TAX.ca.std.mfs=nval('a_ca_std_single');
+  TAX.ca.std.mfj=nval('a_ca_std_mfj'); TAX.ca.std.hoh=nval('a_ca_std_hoh');
+  TAX.federal.safeHarborPYthreshold=nval('a_fed_110thr');
+  TAX.ca.safeHarborPYthreshold=nval('a_ca_110thr');
+}
+
+/* =====================================================================
+   PAYSTUB / W-2 PARSING
+   ===================================================================== */
+const FIELD_LABELS = {
+  salary:[/^salary/i,/regular/i,/^reg\b/i],
+  bonus:[/bonus/i,/commission/i],
+  gross:[/total pay/i,/gross/i,/wages,? *tips/i,/wages tips other/i],
+  fedwh:[/federal income tax/i,/fed(eral)? (income )?tax/i,/fed w\/?h/i],
+  cawh:[/ca income tax/i,/california income tax/i,/ca state tax/i,/state income tax/i,/ca w\/?h/i],
+};
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+async function pdfItems(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const items=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const tc=await page.getTextContent();
+    const vh=page.getViewport({scale:1}).height;
+    for(const it of tc.items){ const s=(it.str||'').trim(); if(!s) continue;
+      items.push({str:s, x:it.transform[4], y:vh-it.transform[5]}); }
+  }
+  return items;
+}
+function buildRows(items){
+  const sorted=items.slice().sort((a,b)=>a.y-b.y||a.x-b.x);
+  const rows=[]; let cur=null;
+  for(const it of sorted){
+    if(!cur||Math.abs(it.y-cur.y)>4){ cur={y:it.y,items:[it]}; rows.push(cur); }
+    else cur.items.push(it);
+  }
+  rows.forEach(r=>r.items.sort((a,b)=>a.x-b.x));
+  return rows;
+}
+function numbersFrom(strs){
+  const out=[];
+  for(const s of strs){
+    if(/^-+$/.test(s)){ out.push(null); continue; }
+    const m=s.match(/-?\$?\s*[\d,]+\.\d{2}|-?\$?\s*[\d,]+/g);
+    if(m) for(const x of m) out.push(num(x));
+  }
+  return out;
+}
+function valuesForLabel(rows, patterns){
+  for(const r of rows){
+    const text=r.items.map(i=>i.str).join(' ');
+    if(patterns.some(p=>p.test(text))){
+      const nums=numbersFrom(r.items.map(i=>i.str)).filter(n=>n!==null);
+      if(nums.length) return nums;
+    }
+  }
+  return [];
+}
+function parsePositioned(rows){
+  const res={};
+  for(const key in FIELD_LABELS){
+    const nums=valuesForLabel(rows, FIELD_LABELS[key]);
+    if(!nums.length) continue;
+    res[key] = nums.length===1 ? {cur:null,ytd:nums[0]} : {cur:nums[0],ytd:nums[nums.length-1]};
+  }
+  return res;
+}
+function findEmployer(rows){
+  for(let i=0;i<rows.length;i++){
+    const t=rows[i].items.map(x=>x.str).join(' ').trim();
+    if(/^employer\b/i.test(t) && rows[i+1]){
+      const next=rows[i+1].items, leftX=next[0].x;
+      return next.filter(x=>x.x<leftX+220).map(x=>x.str).join(' ').trim();
+    }
+  }
+  for(const r of rows){
+    const t=r.items.map(x=>x.str).join(' ').trim();
+    if(t && r.y<170 && !/pay stub|pay date|net pay|detail|w-?2|wage and tax/i.test(t)) return t;
+  }
+  return '';
+}
+function parseMeta(items){
+  const meta={}; const text=items.map(i=>i.str).join('\n');
+  const pd=text.match(/pay date[:\s]*?(\d{1,2}\/\d{1,2}\/\d{2,4})/i)||text.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+  if(pd) meta.paydate=pd[1];
+  const begs=text.match(/period beginning[:\s]*?(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const ends=text.match(/period ending[:\s]*?(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  if(begs&&ends){ const d1=parseDate(begs[1]),d2=parseDate(ends[1]);
+    if(d1&&d2){ const days=(d2-d1)/(1000*60*60*24); meta.freq=days<=11?52:days<=16?24:12; } }
+  return meta;
+}
+function parseText(text){
+  const res={}; const lines=text.split(/\n+/);
+  for(const key in FIELD_LABELS){
+    for(const line of lines){
+      if(FIELD_LABELS[key].some(p=>p.test(line))){
+        const clean=numbersFrom(line.split(/\s+/)).filter(n=>n!==null);
+        if(clean.length) res[key]={cur:clean.length>1?clean[0]:null,ytd:clean[clean.length-1]};
+        break;
+      }
+    }
+  }
+  const meta={}; const pd=text.match(/pay date[:\s]*?(\d{1,2}\/\d{1,2}\/\d{2,4})/i)||text.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+  if(pd) meta.paydate=pd[1];
+  return {res,meta};
+}
+
+/* =====================================================================
+   PRIOR-YEAR RETURN PARSING (IRS 1040 + CA 540)
+   Detects whether the file is a federal or CA return, then pulls AGI and
+   total tax by label. Best-effort — the user verifies the three fields.
+   ===================================================================== */
+function parseReturnLines(lines){
+  const text=lines.join('  ');
+  const isFederal=/form\s*1040|u\.?\s*s\.?\s*individual income tax|department of the treasury/i.test(text);
+  const isCA=/form\s*540|california resident income tax|franchise tax board|\bftb\b/i.test(text);
+  // Last (right-most) dollar amount on the first line matching a label.
+  const lastNum = pats => {
+    for(const ln of lines){
+      if(pats.some(p=>p.test(ln))){
+        const nums=numbersFrom(ln.split(/\s+/)).filter(n=>n!==null && n>=0);
+        if(nums.length) return nums[nums.length-1];
+      }
+    }
+    return null;
+  };
+  const res={};
+  const agi=lastNum([/adjusted gross income/i]);
+  const totalTax=lastNum([/total tax/i, /this is your total tax/i]);
+  if(isCA && !isFederal){
+    if(totalTax!=null) res.pyCa=totalTax;       // CA 540: "Total tax" (line 64)
+  } else {                                      // treat as federal (incl. ambiguous)
+    if(agi!=null) res.pyAgi=agi;                // 1040 line 11
+    if(totalTax!=null) res.pyFed=totalTax;      // 1040 "Total tax"
+  }
+  return {res, isFederal, isCA};
+}
+// Detects a tax return (vs a paystub/W-2) so the single uploader can route files.
+function isReturn(text){
+  return /form\s*1040|form\s*540|u\.?\s*s\.?\s*individual income tax|california resident income tax|franchise tax board|adjusted gross income/i.test(text);
+}
+function is1099NEC(text){ return /1099-?nec|nonemployee compensation/i.test(text); }
+// A self-employment / gig EARNINGS STATEMENT (no 1099 yet): platform/earnings markers,
+// but NOT a W-2 paystub (which has withholding / net pay / salary).
+function isStatement(text){
+  const paystubby=/net pay|federal income tax|pay period|\bsalary\b/i.test(text);
+  const giggy=/uber|lyft|doordash|instacart|grubhub|earnings statement|weekly statement|monthly statement|payout|gross earnings|gross fares|\btrips?\b/i.test(text);
+  return giggy && !paystubby;
+}
+function largestAmount(lines){
+  let max=0; for(const ln of lines){ for(const n of numbersFrom(ln.split(/\s+/))){ if(n!=null && n>max) max=n; } }
+  return max>0?max:null;
+}
+// 1099-NEC box 1 (Nonemployee compensation), or the largest amount as a fallback.
+function parse1099nec(lines){
+  for(const ln of lines){
+    if(/nonemployee compensation/i.test(ln)){
+      const nums=numbersFrom(ln.split(/\s+/)).filter(n=>n!=null && n>0);
+      if(nums.length) return nums[nums.length-1];
+    }
+  }
+  return largestAmount(lines);
+}
+// Gross earnings on a gig statement (best-effort: priority labels, else largest amount).
+function parseStatementGross(lines){
+  const priority=[/gross earnings/i,/total earnings/i,/your earnings/i,/gross fares/i,/total payout/i,/net payout/i,/total paid to you/i,/\bearnings\b/i];
+  for(const p of priority){
+    for(const ln of lines){ if(p.test(ln)){
+      const nums=numbersFrom(ln.split(/\s+/)).filter(n=>n!=null && n>0);
+      if(nums.length) return nums[nums.length-1];
+    }}
+  }
+  return largestAmount(lines);
+}
+function sourceIsEmpty(i){
+  return !( nval(`src_${i}_salary_ytd`) || nval(`src_${i}_gross_ytd`) || nval(`src_${i}_w2_wages`) || val(`src_${i}_employer`).trim() );
+}
+function nextSourceIndex(){
+  for(let i=0;i<sourceCount;i++){ if($(`src_${i}`) && sourceIsEmpty(i)) return i; }
+  addSource(); return sourceCount-1;
+}
+// ONE uploader for everything: paystubs/W-2s -> income source cards (one per file);
+// last year's 1040/540 -> prior-year fields. Each file is read once, then routed.
+async function handleDocs(files){
+  if(!files || !files.length) return;
+  const st=$('docStatus'); st.textContent='Reading document(s) …';
+  const summary=[];
+  for(const file of files){
+    try{
+      const isPdf=/\.pdf$/i.test(file.name)||file.type==='application/pdf';
+      let items=null, rows=null, lines, text;
+      if(isPdf){ items=await pdfItems(file); rows=buildRows(items);
+        lines=rows.map(r=>r.items.map(x=>x.str).join(' ')); text=lines.join('  '); }
+      else { st.textContent='Running OCR (first run downloads the engine; ~10–20s) …';
+        const {data}=await Tesseract.recognize(file,'eng'); text=data.text; lines=text.split(/\n+/); }
+
+      if(isReturn(text)){                          // -> prior-year fields (Step 2)
+        const {res}=parseReturnLines(lines); const did=[];
+        if(res.pyAgi!=null){ $('s_pyagi').value=res.pyAgi; did.push('AGI'); }
+        if(res.pyFed!=null){ $('s_pyfed').value=res.pyFed; did.push('federal tax'); }
+        if(res.pyCa!=null){  $('s_pyca').value =res.pyCa;  did.push('CA tax'); }
+        summary.push(did.length ? ('last year’s '+did.join(' & ')) : 'a tax return (nothing found)');
+      } else if(is1099NEC(text) || isStatement(text)){   // -> a 1099 / self-employment payer card
+        const amt=(is1099NEC(text)?parse1099nec(lines):parseStatementGross(lines))||0;
+        const company=detectSeCompany(text);
+        const j=seIndexForCompany(company);            // same payer accumulates; else new card
+        $(`se_${j}_gross`).value = nval(`se_${j}_gross`) + amt;
+        if(company && !val(`se_${j}_company`).trim()){ $(`se_${j}_company`).value=company; updateSeTitle(j); }
+        if($('se_details')) $('se_details').open=true;
+        if($(`se_${j}_details`)) $(`se_${j}_details`).open=true;
+        summary.push((company||(is1099NEC(text)?'1099-NEC':'earnings statement'))+' → +'+money(amt)+' self-employment income');
+      } else {                                     // -> an income source card
+        const i=nextSourceIndex();
+        if(isPdf){ const parsed=parsePositioned(rows), meta=parseMeta(items), emp=findEmployer(rows);
+          if(emp) $(`src_${i}_employer`).value=emp; fillForm(parsed, meta, i); applyEmployerTemplate(i); }
+        else { const {res,meta}=parseText(text); fillForm(res, meta, i); }
+        if($(`src_${i}_status`)) $(`src_${i}_status`).textContent='Filled from upload — please check.';
+        if($(`src_${i}_details`)) $(`src_${i}_details`).open=true;   // expand so the user can verify
+        summary.push('income source '+(i+1)+(val(`src_${i}_employer`)?' ('+val(`src_${i}_employer`)+')':''));
+      }
+    }catch(e){ console.error(e); summary.push('a file that couldn’t be read'); }
+  }
+  formatAll(); markDirty();
+  st.textContent = summary.length ? ('Sorted → '+summary.join('; ')+'. Please check every field.') : 'Couldn’t read those.';
+  if(summary.length) showUploadModal(summary);
+}
+// Popup after an upload, nudging the user to calculate their estimated taxes.
+function showUploadModal(summary){
+  const msg=$('uploadModalMsg');
+  if(msg) msg.innerHTML = (summary && summary.length ? 'Added: '+summary.join('; ')+'.<br>' : '')
+    + 'Click <strong>Calculate</strong> to see your estimated taxes &mdash; what you owe and what to pay.';
+  $('uploadModal').classList.remove('hidden');
+}
+function hideUploadModal(){ $('uploadModal').classList.add('hidden'); }
+
+let demoLoaded=false;   // is the demo dataset currently loaded? (drives the Demo/Clear button)
+// Reset everything to a clean slate (one empty W-2 card, one empty 1099 card).
+function clearAll(){
+  $('sourcesList').innerHTML=''; sourceCount=0; addSource();
+  $('seList').innerHTML=''; seCount=0; addSeSource();
+  ['s_otherincome','s_pyfed','s_pyca','s_pyagi','se_w2ss',
+   'est_fed_q1','est_fed_q2','est_fed_q3','est_fed_q4','est_ca_q1','est_ca_q2','est_ca_q3','est_ca_q4']
+   .forEach(id=>{ if($(id)) $(id).value='0'; });
+  if($('s_filing')) $('s_filing').value='mfj';
+  $('results').classList.add('hidden');
+  if($('docStatus')) $('docStatus').textContent='';
+  hideUploadModal();
+  formatAll(); clearDirty();
+  demoLoaded=false; if($('demoBtn')) $('demoBtn').textContent='Demo';
+}
+
+// Load a realistic sample (W-2 + a 1099 with tips) and show the result instantly.
+function loadDemo(){
+  clearAll();
+  const set=(id,v)=>{ if($(id)) $(id).value=v; };
+  set('src_0_employer','Demo Co'); set('src_0_paydate','05/31/2026'); set('src_0_freq','24');
+  set('src_0_salary_cur','5833.33'); set('src_0_salary_ytd','64166.63');
+  set('src_0_bonus_cur','0'); set('src_0_bonus_ytd','8000');
+  set('src_0_gross_cur','5833.33'); set('src_0_gross_ytd','72166.63');
+  set('src_0_fedwh_cur','547.50'); set('src_0_fedwh_ytd','7782.50');
+  set('src_0_cawh_cur','252.62'); set('src_0_cawh_ytd','3597.22');
+  setRemaining(0); updateSourceTitle(0);
+  set('se_0_company','Uber (side gig)'); set('se_0_gross','4000'); set('se_0_tips','474');
+  updateSeTitle(0);
+  set('s_filing','single'); seedCaExempt();
+  set('s_pyfed','11000'); set('s_pyca','3500'); set('s_pyagi','120000');
+  if($('src_0_details')) $('src_0_details').open=true;
+  if($('se_0_details')) $('se_0_details').open=true;
+  formatAll();
+  calculate();
+  $('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* =====================================================================
+   SOURCE CARDS (multiple paystubs / W-2s)
+   ===================================================================== */
+let sourceCount = 0;
+function sourceCardHTML(i){
+  return `
+  <div class="source" id="src_${i}">
+    <details id="src_${i}_details">
+    <summary class="collapse-head"><span id="src_${i}_title">Income source ${i+1}</span>
+      <button class="btn danger rm" data-remove="${i}" title="Remove">Remove</button></summary>
+    <div class="statusmsg" id="src_${i}_status" style="margin-top:8px"></div>
+    <div class="grid" style="margin-top:10px">
+      <div class="row"><label>Label / employer</label><input id="src_${i}_employer" placeholder="e.g. Knowv8 (Chris)"></div>
+      <div class="row"><label>How to use this source</label>
+        <select id="src_${i}_mode">
+          <option value="project" selected>Mid-year paystub — project to year-end</option>
+          <option value="ytd">Paystub — use year-to-date as-is</option>
+          <option value="w2">W-2 / final annual totals</option>
+        </select>
+      </div>
+      <div class="row" data-paystub="${i}"><label>Pay date</label><input id="src_${i}_paydate" placeholder="MM/DD/YYYY"></div>
+      <div class="row" data-paystub="${i}"><label>Pay periods / year</label>
+        <select id="src_${i}_freq">
+          <option value="52">52 — weekly</option>
+          <option value="26">26 — every 2 weeks</option>
+          <option value="24" selected>24 — twice a month</option>
+          <option value="12">12 — monthly</option>
+        </select></div>
+      <div class="row" data-paystub="${i}"><label>Pay periods left this year</label>
+        <input class="num int" id="src_${i}_remaining" placeholder="auto"></div>
+    </div>
+
+    <div data-paystub="${i}">
+      <table style="margin-top:4px">
+        <thead><tr><th>Line item</th><th>This paycheck</th><th>Year-to-date</th></tr></thead>
+        <tbody>
+          <tr><td>Salary / regular pay</td><td><input class="num" id="src_${i}_salary_cur"></td><td><input class="num" id="src_${i}_salary_ytd"></td></tr>
+          <tr><td>Bonus / other pay</td><td><input class="num" id="src_${i}_bonus_cur"></td><td><input class="num" id="src_${i}_bonus_ytd"></td></tr>
+          <tr><td><strong>Total / gross pay</strong></td><td><input class="num" id="src_${i}_gross_cur"></td><td><input class="num" id="src_${i}_gross_ytd"></td></tr>
+          <tr><td>Federal income tax withheld</td><td><input class="num" id="src_${i}_fedwh_cur"></td><td><input class="num" id="src_${i}_fedwh_ytd"></td></tr>
+          <tr><td>CA income tax withheld</td><td><input class="num" id="src_${i}_cawh_cur"></td><td><input class="num" id="src_${i}_cawh_ytd"></td></tr>
+        </tbody>
+      </table>
+      <div class="row" style="margin-top:8px"><label>Expected bonus still to come this year (optional)</label>
+        <input class="num" id="src_${i}_futurebonus" value="0"></div>
+    </div>
+
+    <div data-w2="${i}" class="grid hidden" style="margin-top:8px">
+      <div class="row"><label>W-2 Box 1 — wages</label><input class="num" id="src_${i}_w2_wages"></div>
+      <div class="row"><label>W-2 Box 2 — federal tax withheld</label><input class="num" id="src_${i}_w2_fedwh"></div>
+      <div class="row"><label>W-2 Box 17 — CA state tax withheld</label><input class="num" id="src_${i}_w2_cawh"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn secondary" data-remember="${i}">Remember this employer's layout</button>
+      <span class="statusmsg" id="src_${i}_remember" style="margin:0"></span>
+    </div>
+    </details>
+  </div>`;
+}
+// Header of each collapsed source = the employer name (or a default).
+function updateSourceTitle(i){
+  const t=$(`src_${i}_title`); if(!t) return;
+  t.textContent = val(`src_${i}_employer`).trim() || ('Income source '+(i+1));
+}
+
+/* ---- 1099 / self-employment payer cards (multiple, named by company) ---- */
+let seCount=0;
+function seCardHTML(j){
+  return `
+  <div class="source" id="se_${j}">
+    <details id="se_${j}_details">
+    <summary class="collapse-head"><span id="se_${j}_title">1099 source ${j+1}</span>
+      <button class="btn danger rm" data-seremove="${j}" title="Remove">Remove</button></summary>
+    <div class="statusmsg" id="se_${j}_status" style="margin-top:8px"></div>
+    <div class="grid">
+      <div class="row"><label>Company / payer</label><input id="se_${j}_company" placeholder="e.g. Uber"></div>
+      <div class="row"><label>Gross income (before tips)</label><input class="num money" id="se_${j}_gross" value="0"></div>
+      <div class="row"><label>Tips (added to income)</label><input class="num money" id="se_${j}_tips" value="0"></div>
+    </div>
+    <div class="grid">
+      <div class="row"><label>Business expenses</label><input class="num money" id="se_${j}_expenses" value="0"></div>
+      <div class="row"><label>Business miles driven</label><input class="num int" id="se_${j}_miles" value="0"></div>
+    </div>
+    </details>
+  </div>`;
+}
+function addSeSource(open){
+  const j=seCount++;
+  $('seList').insertAdjacentHTML('beforeend', seCardHTML(j));
+  $(`se_${j}_company`).addEventListener('input', ()=>updateSeTitle(j));
+  if(open) $(`se_${j}_details`).open=true;
+  formatAll(); markDirty();
+  return j;
+}
+// Expand-all / collapse-all toggle in the header.
+function toggleAllSections(){
+  const all=[...document.querySelectorAll('main details')];
+  const anyClosed=all.some(d=>!d.open);
+  all.forEach(d=>d.open=anyClosed);
+  $('toggleAllBtn').textContent = anyClosed ? 'Collapse all' : 'Expand all';
+}
+// Download a self-contained summary of what to pay (open it to print / save as PDF).
+let lastCalc=null;
+function ensureCalc(){
+  if($('results').classList.contains('hidden')) calculate();
+  if($('results').classList.contains('hidden')){ alert('Enter some income and click Calculate first.'); return false; }
+  return true;
+}
+// Open the format chooser (PDF or CSV).
+function openDownloadChoice(){ if(ensureCalc()) $('downloadModal').classList.remove('hidden'); }
+function hideDownloadModal(){ $('downloadModal').classList.add('hidden'); }
+
+// Build the printable HTML report used for the PDF.
+function buildReportHtml(){
+  const y=TAX.year;
+  const filingLabel={mfj:'Married filing jointly',single:'Single',hoh:'Head of household',mfs:'Married filing separately'}[val('s_filing')]||val('s_filing');
+  const projTable = $('sourceRows') && $('sourceRows').closest('table') ? $('sourceRows').closest('table').outerHTML : '';
+  const css = `body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;max-width:820px;margin:24px auto;padding:0 16px;line-height:1.5}
+    h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;border-bottom:1px solid #cbd5e1;padding-bottom:4px;margin:26px 0 8px}
+    table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+    th,td{text-align:right;padding:6px 8px;border-bottom:1px solid #e2e8f0} th:first-child,td:first-child{text-align:left}
+    .big{font-size:22px;font-weight:800;margin:4px 0} .sub{color:#64748b;font-size:13px}
+    .line{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-top:1px dashed #e2e8f0}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#e2e8f0;color:#0f172a}
+    .note{font-size:12.5px;background:#f8fafc;border-left:3px solid #cbd5e1;padding:8px 12px;border-radius:6px;margin:8px 0}
+    .rc{border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin:10px 0}
+    .cards{display:flex;gap:14px;flex-wrap:wrap} .cards>div{flex:1;min-width:280px}
+    .breakdown{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:pre;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow-x:auto}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Estimated Tax Summary ${y}</title><style>${css}</style></head><body>
+    <h1>Estimated Tax Summary &mdash; ${y}</h1>
+    <p class="sub">Filing status: ${filingLabel} &middot; Federal + California &middot; Estimate only, not tax advice.</p>
+    <h2>Projected full year</h2>${projTable}
+    <h2>What you need to pay</h2>${$('bottomline').innerHTML}
+    <h2>Estimated payment schedule</h2>${$('schedule').innerHTML}
+    <h2>Federal &amp; California</h2><div class="cards"><div class="rc">${$('card_federal').innerHTML}</div><div class="rc">${$('card_ca').innerHTML}</div></div>
+    <h2>Worksheets</h2><div class="breakdown">${$('bd_fed').textContent}</div><br><div class="breakdown">${$('bd_ca').textContent}</div>
+    <p class="note" style="margin-top:24px">This is an estimate only and not tax or legal advice. Verify all figures against the IRS, the California FTB, and your own return or advisor. Generated by the Fast Insights Estimated Tax tool.</p>
+    </body></html>`;
+}
+// PDF: open the report in a new window and trigger print (Save as PDF).
+function downloadPDF(){
+  hideDownloadModal();
+  if(!ensureCalc()) return;
+  const w=window.open('','_blank');
+  if(!w){ alert('Please allow pop-ups to download the PDF.'); return; }
+  w.document.open(); w.document.write(buildReportHtml()); w.document.close(); w.focus();
+  setTimeout(()=>{ try{ w.print(); }catch(e){} }, 500);
+}
+// CSV: key results as a .csv (also opens in Excel/Sheets), built from the last calc.
+function csvEsc(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }
+function buildCsv(){
+  const lc=lastCalc; if(!lc) return '';
+  const y=TAX.year;
+  const filingLabel={mfj:'Married filing jointly',single:'Single',hoh:'Head of household',mfs:'Married filing separately'}[lc.filing]||lc.filing;
+  const R=[]; const row=(...c)=>R.push(c.map(csvEsc).join(','));
+  const due=sh=> sh.refund>0 ? '('+Math.round(sh.refund)+') refund' : Math.round(sh.balanceDue);
+  row('Estimated Tax Summary', y); row('Filing status', filingLabel); row('');
+  row('Projected full-year wages', Math.round(lc.inp.fyWages));
+  if(lc.inp.seNetProfit>0) row('Self-employment net profit', Math.round(lc.inp.seNetProfit));
+  row('');
+  row('', 'Federal', 'California');
+  row('Projected full-year tax', Math.round(lc.fedSH.projectedTax), Math.round(lc.caSH.projectedTax));
+  row('90% of this year', Math.round(lc.fedSH.o90), Math.round(lc.caSH.o90));
+  row('Required (safe harbor)', Math.round(lc.fedSH.required), Math.round(lc.caSH.required));
+  row('Paid in (withholding + estimates)', Math.round(lc.fedSH.withholding), Math.round(lc.caSH.withholding));
+  row('Balance due / (refund)', due(lc.fedSH), due(lc.caSH));
+  row('Shortfall vs safe harbor', Math.round(lc.fedSH.shortfallVsSafe), Math.round(lc.caSH.shortfallVsSafe));
+  row('');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const fedSched=estSchedule(y, today, 'fed', lc.fedSH.shortfallVsSafe);
+  const caSched=estSchedule(y, today, 'ca', lc.caSH.shortfallVsSafe);
+  const map={};
+  fedSched.forEach(x=>{ map[x.label]=map[x.label]||{f:0,c:0}; map[x.label].f=x.amount; });
+  caSched.forEach(x=>{ map[x.label]=map[x.label]||{f:0,c:0}; map[x.label].c=x.amount; });
+  const labels=Object.keys(map).sort((a,b)=> new Date(a)-new Date(b));
+  row('Estimated payment schedule (to hit safe harbor)');
+  row('Due date','Federal','California');
+  labels.forEach(l=> row(l, Math.round(map[l].f||0), Math.round(map[l].c||0)));
+  row('Total', Math.round(lc.fedSH.shortfallVsSafe), Math.round(lc.caSH.shortfallVsSafe));
+  row(''); row('Estimate only — not tax advice. Verify against the IRS and CA FTB.');
+  return R.join('\r\n');
+}
+function downloadCsv(){
+  hideDownloadModal();
+  if(!ensureCalc()) return;
+  const blob=new Blob(['﻿'+buildCsv()],{type:'text/csv;charset=utf-8'});  // BOM so Excel reads UTF-8
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`Estimated-Tax-Summary-${TAX.year}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function removeSeSource(j){
+  const el=$(`se_${j}`); if(el) el.remove();
+  if(!$('seList').children.length) addSeSource();
+  markDirty();
+}
+function updateSeTitle(j){
+  const t=$(`se_${j}_title`); if(!t) return;
+  t.textContent = val(`se_${j}_company`).trim() || ('1099 source '+(j+1));
+}
+// Recognise the gig platform / payer name from a statement or 1099.
+function detectSeCompany(text){
+  const m=text.match(/uber\s*eats|uber|lyft|door\s*dash|doordash|instacart|grubhub|amazon\s*flex|postmates/i);
+  if(!m) return '';
+  return m[0].replace(/\s+/g,' ').trim().replace(/\b\w/g,c=>c.toUpperCase());
+}
+// Card to receive an uploaded 1099/statement: match an existing card by company
+// (so monthly statements from the same payer accumulate), else first empty, else new.
+function seIndexForCompany(company){
+  if(company){ for(let j=0;j<seCount;j++){ if($(`se_${j}`) && val(`se_${j}_company`).trim().toLowerCase()===company.toLowerCase()) return j; } }
+  for(let j=0;j<seCount;j++){ if($(`se_${j}`) && !nval(`se_${j}_gross`) && !val(`se_${j}_company`).trim()) return j; }
+  return addSeSource();
+}
+function gatherSe(){
+  const arr=[];
+  for(let j=0;j<seCount;j++){ if(!$(`se_${j}`)) continue;
+    const gross=nval(`se_${j}_gross`), tips=nval(`se_${j}_tips`), expenses=nval(`se_${j}_expenses`), miles=nval(`se_${j}_miles`);
+    const mileageDed=miles*TAX.se.mileageRate;
+    arr.push({label:val(`se_${j}_company`).trim()||('1099 source '+(j+1)),
+      gross, tips, expenses, miles, mileageDed, net:gross+tips-expenses-mileageDed});
+  }
+  return arr;
+}
+function addSource(open){
+  const i=sourceCount++;
+  $('sourcesList').insertAdjacentHTML('beforeend', sourceCardHTML(i));
+  $(`src_${i}_mode`).addEventListener('change', ()=>applyMode(i));
+  $(`src_${i}_freq`).addEventListener('change', ()=>setRemaining(i));
+  $(`src_${i}_employer`).addEventListener('blur', ()=>applyEmployerTemplate(i));
+  $(`src_${i}_employer`).addEventListener('input', ()=>updateSourceTitle(i));
+  applyMode(i);
+  if(open) $(`src_${i}_details`).open=true;   // expand when added by the user / on upload
+  formatAll();   // mark the new card's empty numeric fields as "needed" (red)
+  markDirty();
+  return i;
+}
+function applyMode(i){
+  const mode=val(`src_${i}_mode`);
+  document.querySelectorAll(`[data-paystub="${i}"]`).forEach(el=>el.classList.toggle('hidden', mode==='w2'));
+  document.querySelectorAll(`[data-w2="${i}"]`).forEach(el=>el.classList.toggle('hidden', mode!=='w2'));
+}
+function removeSource(i){
+  const el=$(`src_${i}`); if(el) el.remove();
+  // keep at least one card
+  if(!$('sourcesList').children.length) addSource();
+  markDirty();
+}
+
+function fillForm(parsed, meta, i){
+  const set=(id,v)=>{ if(v!=null && !isNaN(v)) $(id).value=v.toFixed(2); };
+  if(parsed.salary){ set(`src_${i}_salary_cur`,parsed.salary.cur); set(`src_${i}_salary_ytd`,parsed.salary.ytd); }
+  if(parsed.bonus){ set(`src_${i}_bonus_cur`,parsed.bonus.cur); set(`src_${i}_bonus_ytd`,parsed.bonus.ytd); }
+  if(parsed.gross){ set(`src_${i}_gross_cur`,parsed.gross.cur); set(`src_${i}_gross_ytd`,parsed.gross.ytd); }
+  if(parsed.fedwh){ set(`src_${i}_fedwh_cur`,parsed.fedwh.cur); set(`src_${i}_fedwh_ytd`,parsed.fedwh.ytd); }
+  if(parsed.cawh){ set(`src_${i}_cawh_cur`,parsed.cawh.cur); set(`src_${i}_cawh_ytd`,parsed.cawh.ytd); }
+  if(!parsed.gross){
+    const gc=nval(`src_${i}_salary_cur`)+nval(`src_${i}_bonus_cur`);
+    const gy=nval(`src_${i}_salary_ytd`)+nval(`src_${i}_bonus_ytd`);
+    if(gc) $(`src_${i}_gross_cur`).value=gc.toFixed(2);
+    if(gy) $(`src_${i}_gross_ytd`).value=gy.toFixed(2);
+  }
+  // Mirror annual values into the W-2 fields so switching modes keeps data.
+  const annual=(o)=> o ? (o.ytd!=null?o.ytd:o.cur) : null;
+  set(`src_${i}_w2_wages`, annual(parsed.gross));
+  set(`src_${i}_w2_fedwh`, annual(parsed.fedwh));
+  set(`src_${i}_w2_cawh`,  annual(parsed.cawh));
+  if(meta.paydate) $(`src_${i}_paydate`).value=meta.paydate;
+  if(meta.freq) $(`src_${i}_freq`).value=String(meta.freq);
+  setRemaining(i);
+  updateSourceTitle(i);
+  formatAll();
+  markDirty(true);   // an upload always highlights Calculate, even before the first run
+}
+// Auto-fill "pay periods left this year" from periods/year minus periods already paid.
+function setRemaining(i){
+  const ppy=parseInt(val(`src_${i}_freq`),10)||24;
+  const sy=nval(`src_${i}_salary_ytd`), sc=nval(`src_${i}_salary_cur`);
+  const haveSalary = sy>0 || sc>0;            // periods inferred from the recurring wage
+  const wy = haveSalary ? sy : nval(`src_${i}_gross_ytd`);
+  const wc = haveSalary ? sc : nval(`src_${i}_gross_cur`);
+  const elapsed=periodsElapsed(wy, wc, val(`src_${i}_paydate`), ppy);
+  $(`src_${i}_remaining`).value = Math.max(0, ppy-elapsed);
+  colorize($(`src_${i}_remaining`));
+}
+
+// (Reading paystubs/W-2s and returns is unified in handleDocs above.)
+
+/* ---- per-employer memory ---- */
+const LS_KEY='fi_estimated_tax_templates_v1';
+function loadTemplates(){ try{ return JSON.parse(localStorage.getItem(LS_KEY))||{}; }catch(e){ return {}; } }
+function saveTemplates(t){ localStorage.setItem(LS_KEY, JSON.stringify(t)); }
+function rememberEmployer(i){
+  const name=val(`src_${i}_employer`).trim();
+  if(!name){ $(`src_${i}_remember`).textContent='Add an employer name first.'; return; }
+  const t=loadTemplates();
+  t[name.toLowerCase()]={employer:name, freq:val(`src_${i}_freq`), mode:val(`src_${i}_mode`)};
+  saveTemplates(t);
+  $(`src_${i}_remember`).textContent='Saved. Next "'+name+'" will reuse these settings.';
+}
+function applyEmployerTemplate(i){
+  const name=val(`src_${i}_employer`).trim().toLowerCase(); if(!name) return;
+  const t=loadTemplates();
+  if(t[name]){ if(t[name].freq) $(`src_${i}_freq`).value=t[name].freq;
+    if(t[name].mode){ $(`src_${i}_mode`).value=t[name].mode; applyMode(i); } }
+}
+
+/* =====================================================================
+   GATHER + CALCULATE
+   ===================================================================== */
+function gatherSource(i){
+  if(!$(`src_${i}`)) return null;
+  const mode=val(`src_${i}_mode`);
+  const label=val(`src_${i}_employer`).trim() || ('Source '+(i+1));
+  if(mode==='w2'){
+    const w=nval(`src_${i}_w2_wages`), f=nval(`src_${i}_w2_fedwh`), c=nval(`src_${i}_w2_cawh`);
+    return {label, mode, fyWages:w, fyFed:f, fyCa:c, periodsLeft:0};
+  }
+  const ppy=parseInt(val(`src_${i}_freq`),10)||24;
+  const salaryCur=nval(`src_${i}_salary_cur`), salaryYtd=nval(`src_${i}_salary_ytd`);
+  const bonusCur=nval(`src_${i}_bonus_cur`), bonusYtd=nval(`src_${i}_bonus_ytd`);
+  const grossCur=nval(`src_${i}_gross_cur`), grossYtd=nval(`src_${i}_gross_ytd`);
+  const fedCur=nval(`src_${i}_fedwh_cur`), fedYtd=nval(`src_${i}_fedwh_ytd`);
+  const caCur=nval(`src_${i}_cawh_cur`), caYtd=nval(`src_${i}_cawh_ytd`);
+  // Recurring wage to annualize = the salary row if filled, else the Total/gross row.
+  // The bonus (YTD + expected) is added ONCE — it isn't earned every pay period — so a
+  // bonus typed in its own row is never lost, even when gross holds only the wage.
+  const haveSalary = salaryYtd>0 || salaryCur>0;
+  const wageYtd = haveSalary ? salaryYtd : grossYtd;
+  const wageCur = haveSalary ? salaryCur : grossCur;
+  const futureBonus = nval(`src_${i}_futurebonus`);   // a bonus not yet on any paycheck
+  const elapsed=periodsElapsed(wageYtd, wageCur, val(`src_${i}_paydate`), ppy);
+  const remOverride=val(`src_${i}_remaining`).trim();
+  const left = mode==='ytd' ? 0
+    : (remOverride!=='' ? Math.max(0, Math.round(num(remOverride))) : Math.max(0, ppy-elapsed));
+  const annualWage = projectAmount(wageYtd, wageCur, left, mode);   // recurring pay, annualized
+  const annualBonus = bonusYtd + futureBonus;                       // one-time pay, added once
+  const hasWages = wageYtd>0 || wageCur>0;            // recurring paychecks to adjust withholding on
+  return {label, mode, periodsLeft: hasWages?left:0,
+    fyWages: annualWage + annualBonus,
+    fyFed:projectAmount(fedYtd,fedCur,left,mode),
+    fyCa:projectAmount(caYtd,caCur,left,mode),
+    // breakdown so the wage composition (incl. bonus) is visible in the results
+    ytdGross: wageYtd + bonusYtd, ytdBonus: bonusYtd,
+    futureWages: mode==='ytd' ? 0 : wageCur*left, futureBonus};
+}
+function gatherAll(){
+  const sources=[];
+  for(let i=0;i<sourceCount;i++){ const s=gatherSource(i); if(s) sources.push(s); }
+  const sum=k=>sources.reduce((a,s)=>a+s[k],0);
+  const estFed=['est_fed_q1','est_fed_q2','est_fed_q3','est_fed_q4'].reduce((a,id)=>a+nval(id),0);
+  const estCa =['est_ca_q1','est_ca_q2','est_ca_q3','est_ca_q4'].reduce((a,id)=>a+nval(id),0);
+  const seSources=gatherSe();
+  const seGross=seSources.reduce((a,s)=>a+s.gross,0), seTips=seSources.reduce((a,s)=>a+s.tips,0);
+  const seExpenses=seSources.reduce((a,s)=>a+s.expenses,0), seMiles=seSources.reduce((a,s)=>a+s.miles,0);
+  const seMileageDed=seSources.reduce((a,s)=>a+s.mileageDed,0), seW2ss=nval('se_w2ss');
+  const seNetProfit=Math.max(0, seSources.reduce((a,s)=>a+s.net,0));
+  return {sources,
+    fyWages:sum('fyWages')+nval('s_otherincome'), fyWagesOnly:sum('fyWages'), fyFed:sum('fyFed'), fyCa:sum('fyCa'),
+    estFed, estCa,
+    seSources, seGross, seTips, seExpenses, seMiles, seW2ss, seMileageDed, seNetProfit,
+    periodsLeft:sources.reduce((a,s)=>a+s.periodsLeft,0),
+    pyFed:nval('s_pyfed'), pyCa:nval('s_pyca'), pyAgi:nval('s_pyagi')};
+}
+
+function calculate(){
+  const filing=val('s_filing'); readAssumptions();
+  const inp=gatherAll(); const isMFS=filing==='mfs';
+
+  // Self-employment tax + AGI effect (1099 net profit added; half SE tax deducted).
+  const seInfo = selfEmploymentTax(inp.seNetProfit, inp.seW2ss, TAX.se);
+  const agi = inp.fyWages + inp.seNetProfit - seInfo.halfDeduction;
+  const addlMed = additionalMedicareTax(inp.fyWagesOnly, seInfo.seBase, filing, TAX.federal.addlMedicare);
+
+  const fedStd=TAX.federal.std[filing]??TAX.federal.std.single;
+  const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
+  const fed=federalTax(agi, fedStd, fedBr, 0);
+  const fedProjected = fed.tax + seInfo.tax + addlMed;     // income tax + SE tax + 0.9% Medicare surtax
+  const fedSH=safeHarbor(fedProjected, inp.pyFed, inp.pyAgi, inp.fyFed + inp.estFed, {
+    pyThreshold:TAX.federal.safeHarborPYthreshold, pyThresholdMFS:TAX.federal.safeHarborPYthresholdMFS,
+    deMinimis:TAX.federal.deMinimis, isMFS});
+
+  const caStd=TAX.ca.std[filing]??TAX.ca.std.single;
+  const caBr=TAX.ca.brackets[filing]??TAX.ca.brackets.single;
+  const ca=californiaTax(agi, caStd, caBr, nval('a_ca_exempt'),      // CA: no SE tax, but net profit is taxable
+    TAX.ca.mentalHealthThreshold, TAX.ca.mentalHealthRate);
+  const caSH=safeHarbor(ca.tax, inp.pyCa, inp.pyAgi, inp.fyCa + inp.estCa, {
+    pyThreshold:TAX.ca.safeHarborPYthreshold, pyThresholdMFS:TAX.ca.safeHarborPYthresholdMFS,
+    deMinimis:TAX.ca.deMinimis, highIncomeNoPY:TAX.ca.highIncomeNoPY, isMFS});
+
+  lastCalc = {inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed};
+  render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed);
+  clearDirty();
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+// Build a bracket-by-bracket table. extraRows = reconciling lines (CA credit etc.).
+function bracketTableHTML(taxable, brackets, extraRows){
+  const rows=bracketBreakdown(taxable, brackets);
+  let total=0;
+  let html=`<table><thead><tr><th>Marginal rate &amp; income slice</th><th>Income taxed here</th><th>Tax</th></tr></thead><tbody>`;
+  for(const r of rows){
+    total+=r.tax;
+    const pct=+(r.rate*100).toFixed(2);
+    const range=`${money(r.lower)} – ${r.top===Infinity?'and up':money(r.top)}`;
+    html+=`<tr><td><strong>${pct}%</strong> on ${range}</td><td class="num">${money(r.amount)}</td><td class="num">${money(r.tax)}</td></tr>`;
+  }
+  html+=`<tr style="font-weight:700;border-top:2px solid #0f172a"><td>Tax on ${money(taxable)} taxable income</td><td></td><td class="num">${money(total)}</td></tr>`;
+  if(extraRows) for(const er of extraRows)
+    html+=`<tr${er.bold?' style="font-weight:700"':''}><td>${er.label}</td><td></td><td class="num">${money(er.amount)}</td></tr>`;
+  return html+`</tbody></table>`;
+}
+// The income → AGI → taxable-income steps that feed the bracket table below it.
+// `rows` are {label, amount, bold?}; amounts carry their sign (subtractions are negative).
+function taxableStepsHTML(rows){
+  let html=`<table style="margin-bottom:12px"><thead><tr><th>From income to taxable income</th><th>Amount</th></tr></thead><tbody>`;
+  for(const r of rows)
+    html+=`<tr${r.bold?' style="font-weight:700;border-top:2px solid #0f172a"':''}><td>${r.label}</td><td class="num">${money(r.amount)}</td></tr>`;
+  return html+`</tbody></table>`;
+}
+function optLine(label, amount, controlling, badge){
+  const mark=controlling?' <span class="pill good">controls</span>':'';
+  const b=badge?` <span class="sub" style="font-size:11px">(${badge})</span>`:'';
+  return `<div class="line"${controlling?' style="font-weight:700"':''}><span>${label}${mark}${b}</span><span>${money(amount)}</span></div>`;
+}
+function safeHarborCard(title, sh, withheld, estPaid, seTax, addlMed){
+  const onTrack = sh.shortfallVsSafe<=0 || sh.deMinimis;
+  // Safe harbor met (no penalty) but a real balance is still owed when you file.
+  const balanceDueAtFiling = sh.refund<=0 && sh.balanceDue>sh.deMinimisThreshold;
+  const parts=[]; if(seTax>0) parts.push(money(seTax)+' self-employment tax'); if(addlMed>0) parts.push(money(addlMed)+' Medicare surtax');
+  const extras = parts.length ? ` &mdash; incl. ${parts.join(' + ')}` : '';
+  const pill = sh.refund>0 ? '<span class="pill good">Refund expected</span>'
+    : !onTrack ? '<span class="pill bad">Short of safe harbor</span>'
+    : balanceDueAtFiling ? '<span class="pill warn">Balance due</span>'
+    : '<span class="pill good">On track</span>';
+  let opts=optLine('90% of this year’s projected tax', sh.o90, sh.controllingLabel==='90% of this year');
+  opts+=optLine('100% of this year — full tax due at filing', sh.projectedTax, false, 'owe $0 in April');
+  if(sh.priorTax>0 && !sh.highIncomeBlocked){
+    const is110=sh.pyMultiplier===1.10;
+    opts+=optLine('100% of last year’s tax', sh.o100, sh.controllingLabel==='100% of last year', !is110?'':'not available — AGI over threshold');
+    opts+=optLine('110% of last year’s tax', sh.o110, sh.controllingLabel==='110% of last year', is110?'':'only if AGI over threshold');
+  } else if(sh.highIncomeBlocked){
+    opts+='<div class="line"><span style="color:#991b1b">AGI ≥ $1M → must use 90% of this year</span><span></span></div>';
+  } else {
+    opts+='<div class="line"><span>100% / 110% of last year</span><span>enter last year’s tax</span></div>';
+  }
+  return `
+    <h3>${title} ${pill}</h3>
+    <div class="big">${money(sh.projectedTax)}</div>
+    <div class="sub" style="margin:-2px 0 8px">projected full-year tax${extras}</div>
+    ${opts}
+    <div class="line" style="font-weight:700;border-top:2px solid #0f172a;margin-top:4px">
+      <span>Required to avoid penalty (${sh.controllingLabel})</span><span>${money(sh.required)}</span></div>
+    <div class="line"><span>Projected withholding</span><span>${money(withheld)}</span></div>
+    ${estPaid>0?`<div class="line"><span>Estimated payments already made</span><span>${money(estPaid)}</span></div>
+    <div class="line" style="font-weight:600"><span>Total paid in</span><span>${money(sh.withholding)}</span></div>`:''}
+    <div class="line"><span>${sh.refund>0?'Projected refund':'Projected balance due at filing'}</span>
+      <span style="color:${sh.refund>0?'#16a34a':(sh.balanceDue>0?'#d97706':'#16a34a')}">${money(sh.refund>0?sh.refund:sh.balanceDue)}</span></div>
+    ${sh.refund<=0 && sh.deMinimis?`<div class="note good" style="margin:8px 0 0">Balance due under ${money(sh.deMinimisThreshold)} — no underpayment penalty even if short.</div>`:''}
+    ${onTrack && balanceDueAtFiling?`<div class="note warn" style="margin:8px 0 0">Your withholding meets the safe harbor, so <strong>no penalty</strong> — but this ${money(sh.balanceDue)} is still due when you file. Add it to withholding or set the cash aside.</div>`:''}
+  `;
+}
+
+function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed){
+  $('results').classList.remove('hidden');
+  renderSESummary(inp, seInfo);
+
+  // projection note + per-source rows
+  const projecting = inp.sources.some(s=>s.mode==='project');
+  $('projNote').textContent = projecting
+    ? 'Mid-year paystubs are projected to year-end at the latest paycheck’s rate; W-2 / as-is sources are used directly.'
+    : 'Using amounts as entered (no projection).';
+  $('sourceRows').innerHTML = inp.sources.map(s=>{
+    const main=`<tr><td>${s.label} <span class="sub">(${s.mode==='w2'?'W-2':s.mode==='ytd'?'as-is':'projected'})</span></td>
+      <td class="num">${money(s.fyWages)}</td><td class="num">${money(s.fyFed)}</td><td class="num">${money(s.fyCa)}</td></tr>`;
+    if(s.mode==='w2') return main;
+    const bonusTxt = s.ytdBonus>0 ? `incl. ${money(s.ytdBonus)} bonus` : '';
+    const futureBonusTxt = s.futureBonus>0 ? ` + ${money(s.futureBonus)} expected bonus` : '';
+    const sub=`<tr><td colspan="4" class="sub" style="padding-top:0;border-bottom:1px solid var(--line)">
+      ↳ ${money(s.ytdGross)} year-to-date (${bonusTxt||'no bonus'}) + ${money(s.futureWages)} projected salary${futureBonusTxt}</td></tr>`;
+    return main+sub;
+  }).join('')
+    + (nval('s_otherincome')>0?`<tr><td>Other taxable income</td><td class="num">${money(nval('s_otherincome'))}</td><td class="num">—</td><td class="num">—</td></tr>`:'');
+  $('r_fy_wages').textContent=money(inp.fyWages); $('r_fy_fed').textContent=money(inp.fyFed); $('r_fy_ca').textContent=money(inp.fyCa);
+
+  $('card_federal').innerHTML=safeHarborCard('Federal', fedSH, inp.fyFed, inp.estFed, seInfo.tax, addlMed);
+  $('card_ca').innerHTML=safeHarborCard('California', caSH, inp.fyCa, inp.estCa, 0, 0);
+
+  // bracket-by-bracket math — preceded by how AGI / taxable income are built up
+  const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
+  const caBr=TAX.ca.brackets[filing]??TAX.ca.brackets.single;
+  const otherIncome = inp.fyWages - inp.fyWagesOnly;       // non-wage income folded into fyWages
+  const fedSteps=[{label:'Projected full-year wages', amount:inp.fyWagesOnly}];
+  if(otherIncome>0) fedSteps.push({label:'+ Other taxable income', amount:otherIncome});
+  if(inp.seNetProfit>0) fedSteps.push({label:'+ Self-employment net profit (1099)', amount:inp.seNetProfit});
+  if(seInfo.halfDeduction>0) fedSteps.push({label:'– ½ self-employment tax (deductible)', amount:-seInfo.halfDeduction});
+  fedSteps.push({label:'= Adjusted gross income (AGI)', amount:fed.agi, bold:true});
+  fedSteps.push({label:'– Standard deduction', amount:-fed.deduction});
+  fedSteps.push({label:'= Taxable income', amount:fed.taxable, bold:true});
+  $('bracket_fed').innerHTML=taxableStepsHTML(fedSteps)+bracketTableHTML(fed.taxable, fedBr);
+  const caSteps=[
+    {label:'Adjusted gross income (AGI) — same as federal', amount:ca.caAgi},
+    {label:'– CA standard deduction', amount:-ca.std},
+    {label:'= CA taxable income', amount:ca.taxable, bold:true}];
+  const caExtra=[];
+  if(ca.mentalHealth>0) caExtra.push({label:'+ 1% mental-health surcharge (income over $1M)', amount:ca.mentalHealth});
+  if(ca.exemptionCredit>0) caExtra.push({label:'– exemption credit', amount:-ca.exemptionCredit});
+  caExtra.push({label:'= Final California tax', amount:ca.tax, bold:true});
+  $('bracket_ca').innerHTML=taxableStepsHTML(caSteps)+bracketTableHTML(ca.taxable, caBr, caExtra);
+
+  renderBottomLine(inp, fedSH, caSH);
+  renderSchedule(inp, fedSH, caSH);
+
+  $('bd_fed').textContent=fedWorksheet(inp, fed, fedSH, seInfo, addlMed);
+  $('bd_ca').textContent=caWorksheet(inp, ca, caSH);
+}
+// Live summary of the self-employment calculation.
+function renderSESummary(inp, seInfo){
+  const el=$('se_summary'); if(!el) return;
+  if(inp.seGross<=0 && inp.seTips<=0 && inp.seNetProfit<=0){ el.className='note'; el.textContent='No 1099 income entered.'; return; }
+  el.className='note warn';
+  const payers = inp.seSources.filter(s=> s.gross>0 || s.tips>0);
+  const byPayer = payers.length>1 ? `<br>By payer: ${payers.map(s=>`${s.label} <strong>${money(s.net)}</strong>`).join(' &middot; ')}` : '';
+  el.innerHTML =
+    `Net profit <strong>${money(inp.seNetProfit)}</strong> = gross ${money(inp.seGross)}${inp.seTips>0?` + tips ${money(inp.seTips)}`:''} &minus; expenses ${money(inp.seExpenses)} &minus; mileage ${money(inp.seMileageDed)} (${inp.seMiles.toLocaleString('en-US')} mi &times; $${TAX.se.mileageRate.toFixed(3)}).${byPayer}<br>`
+    + `Self-employment tax <strong>${money(seInfo.tax)}</strong> = Social Security ${money(seInfo.ssPortion)} + Medicare ${money(seInfo.medicarePortion)}; half (${money(seInfo.halfDeduction)}) is deducted from income.`
+    + (seInfo.tax===0 && inp.seNetProfit>0 ? ' <em>(under $400 net &mdash; no SE tax.)</em>' : '')
+    + `<br><strong>1099 income has no withholding</strong>, so it typically increases your estimated payments below.`;
+}
+
+function renderBottomLine(inp, fedSH, caSH){
+  const left=inp.periodsLeft;
+  const totalRefund=fedSH.refund+caSH.refund;
+  const totalShortSafe=fedSH.shortfallVsSafe+caSH.shortfallVsSafe;
+  const totalShortFull=fedSH.shortfallVsFull+caSH.shortfallVsFull;
+  let html='';
+
+  // Per-jurisdiction headline (refund vs owe), worded to avoid sign ambiguity.
+  const cell=sh=> sh.refund>0
+    ? `<td class="num" style="color:#16a34a">${money(sh.refund)} refund</td>`
+    : `<td class="num" style="color:#d97706">${money(sh.balanceDue)} due</td>`;
+  html+=`<table><thead><tr><th></th><th>Federal</th><th>California</th></tr></thead><tbody>`;
+  html+=`<tr><td><strong>Projected at filing</strong></td>${cell(fedSH)}${cell(caSH)}</tr>`;
+  html+=`</tbody></table>`;
+
+  // Adjustment guidance. Per-jurisdiction breakdown of what's still owed at filing.
+  const oweParts=[];
+  if(fedSH.shortfallVsFull>0) oweParts.push(money(fedSH.shortfallVsFull)+' federal');
+  if(caSH.shortfallVsFull>0) oweParts.push(money(caSH.shortfallVsFull)+' CA');
+  const oweBreakdown = oweParts.length ? ' ('+oweParts.join(' + ')+')' : '';
+
+  if(totalShortSafe>0 && left>0){
+    const perSafe=totalShortSafe/left, perFull=totalShortFull/left;
+    html+=`<div class="note bad"><strong>You're under-withheld.</strong> Across your ${left} remaining paychecks:<br>
+      &bull; To avoid the penalty (hit safe harbor): add about <strong>${money(perSafe)}/paycheck</strong> (${money(totalShortSafe)} total).<br>
+      &bull; To owe nothing in April (cover 100% of tax): add about <strong>${money(perFull)}/paycheck</strong> (${money(totalShortFull)} total).</div>`;
+    html+=`<p class="note">Add the extra on your <strong>W-4</strong> (federal, line 4c) and CA <strong>DE-4</strong>. Extra withholding counts as paid evenly all year, so it cures earlier-quarter shortfalls — simpler than a late estimated payment.</p>`;
+  } else if(totalShortSafe>0){
+    html+=`<div class="note bad"><strong>You're under the safe harbor with no remaining paychecks to adjust.</strong> Use the <strong>estimated-payment schedule</strong> below to pay the ${money(totalShortSafe)} shortfall${oweBreakdown} and avoid the penalty.</div>`;
+  } else if(totalShortFull>0){
+    // Safe harbor met (no penalty) but a balance is still due at filing — don't claim "no change needed".
+    html+=`<div class="note warn"><strong>No underpayment penalty — your withholding already meets the safe harbor.</strong> But you'll still owe about <strong>${money(totalShortFull)}</strong> when you file${oweBreakdown}.`;
+    if(left>0) html+=`<br>To clear that bill before April, add about <strong>${money(totalShortFull/left)}/paycheck</strong> over your ${left} remaining checks (W-4 line 4c / CA DE-4), or simply set the money aside now.`;
+    else html+=`<br>Set that money aside now so it's ready at filing, or send an optional estimated payment.`;
+    html+=`</div>`;
+  } else if(totalRefund>0){
+    const reduceFed = (fedSH.refund>0 && left>0) ? fedSH.refund/left : 0;
+    const reduceCa  = (caSH.refund>0  && left>0) ? caSH.refund/left  : 0;
+    html+=`<div class="note good"><strong>You're on track with a projected refund of ${money(totalRefund)}</strong> (${money(fedSH.refund)} federal + ${money(caSH.refund)} CA).`;
+    if(left>0 && (reduceFed+reduceCa)>0){
+      html+=`<br>If you'd rather keep that money during the year instead of lending it interest-free, you could <strong>reduce withholding by about ${money(reduceFed+reduceCa)}/paycheck</strong> (${money(reduceFed)} fed + ${money(reduceCa)} CA) over your ${left} remaining checks and still cover your tax.`;
+    }
+    html+=`</div>`;
+  } else {
+    html+=`<div class="note good">On track — no change needed.</div>`;
+  }
+  $('bottomline').innerHTML=html;
+}
+
+function renderSchedule(inp, fedSH, caSH){
+  const today=new Date(); today.setHours(0,0,0,0);
+  // Estimated payments only matter if you're NOT curing it through withholding.
+  const fedDue=fedSH.shortfallVsSafe, caDue=caSH.shortfallVsSafe;
+  if(fedDue<=0 && caDue<=0){
+    $('schedule').innerHTML='<div class="note good">Your projected withholding already meets the safe harbor — no estimated payments required. (You can still send some in if you prefer to pre-pay.)</div>';
+    return;
+  }
+  const fedSched=estSchedule(TAX.year, today, 'fed', fedDue);
+  const caSched=estSchedule(TAX.year, today, 'ca', caDue);
+  // merge by date label
+  const map={};
+  fedSched.forEach(x=>{ map[x.label]=map[x.label]||{label:x.label,fed:0,ca:0}; map[x.label].fed=x.amount; });
+  caSched.forEach(x=>{ map[x.label]=map[x.label]||{label:x.label,fed:0,ca:0}; map[x.label].ca=x.amount; });
+  const rows=Object.values(map).sort((a,b)=> new Date(a.label)-new Date(b.label));
+  let html=`<p class="sub">If you choose to make estimated payments instead of (or on top of) extra withholding, this covers the <strong>safe-harbor shortfall</strong>. Federal is 25% per quarter; California is front-loaded 30/40/0/30.</p>`;
+  html+=`<table><thead><tr><th>Due date</th><th>Federal (Form 1040-ES)</th><th>California (Form 540-ES)</th></tr></thead><tbody>`;
+  for(const r of rows){
+    html+=`<tr><td>${r.label}</td><td class="num">${r.fed>0?money(r.fed):'—'}</td><td class="num">${r.ca>0?money(r.ca):'—'}</td></tr>`;
+  }
+  html+=`<tr style="font-weight:700"><td>Total</td><td class="num">${money(fedDue)}</td><td class="num">${money(caDue)}</td></tr>`;
+  html+=`</tbody></table>`;
+  html+=`<p class="note">Pay federal at <strong>irs.gov/payments</strong> (Direct Pay) and California at <strong>ftb.ca.gov</strong> (Web Pay). Dates already passed are dropped and their share rolled into the next due date.</p>`;
+  $('schedule').innerHTML=html;
+}
+
+function fedWorksheet(inp, fed, sh, seInfo, addlMed){
+  const L=[];
+  L.push('FEDERAL — projected '+TAX.year);
+  L.push('────────────────────────────────────────');
+  L.push('Total full-year wages (all sources)  '+money2(inp.fyWages));
+  if(inp.seNetProfit>0 || (seInfo&&seInfo.tax>0)){
+    L.push('Self-employment net profit (1099)    '+money2(inp.seNetProfit));
+    L.push('  gross '+money2(inp.seGross)+(inp.seTips>0?' + tips '+money2(inp.seTips):'')+' − expenses '+money2(inp.seExpenses)+' − mileage '+money2(inp.seMileageDed));
+    L.push('Less 1/2 self-employment tax         -'+money2(seInfo.halfDeduction));
+  }
+  L.push('AGI (simplified)                     '+money2(fed.agi));
+  L.push('Less standard deduction              -'+money2(fed.deduction));
+  L.push('Taxable income                       '+money2(fed.taxable));
+  L.push('Federal income tax (brackets)        '+money2(fed.tax));
+  if(seInfo && seInfo.tax>0){
+    L.push('Self-employment tax                  '+money2(seInfo.tax));
+    L.push('  Social Security '+money2(seInfo.ssPortion)+' + Medicare '+money2(seInfo.medicarePortion));
+  }
+  if(addlMed>0){
+    L.push('Additional Medicare tax (0.9%)       '+money2(addlMed));
+    L.push('  on wages + SE income over the threshold');
+  }
+  if((seInfo&&seInfo.tax>0) || addlMed>0)
+    L.push('Federal total tax (income + SE + surtax) '+money2(fed.tax+(seInfo?seInfo.tax:0)+(addlMed||0)));
+  L.push('');
+  L.push('SAFE HARBOR — required = SMALLER of:');
+  L.push('  90% of this year   = 0.90 × '+money2(sh.projectedTax)+' = '+money2(sh.o90));
+  if(sh.priorTax>0){
+    L.push('  '+(sh.pyMultiplier===1.10?'110%':'100%')+' of last year = '+sh.pyMultiplier.toFixed(2)+' × '+money2(sh.priorTax)+' = '+money2(sh.priorTax*sh.pyMultiplier));
+    L.push('  (last-year AGI '+money2(sh.priorAgi)+(sh.priorAgi>sh.pyThreshold?' > ':' ≤ ')+money2(sh.pyThreshold)+' → '+(sh.pyMultiplier===1.10?'110%':'100%')+')');
+  } else L.push('  100%/110% of last year = (enter last year’s tax to use this)');
+  L.push('  → Required = '+money2(sh.required)+'  ('+sh.controllingLabel+')');
+  L.push('');
+  L.push('Projected withholding                 '+money2(inp.fyFed));
+  if(inp.estFed>0){
+    L.push('Estimated payments already made       '+money2(inp.estFed));
+    L.push('Total paid in                         '+money2(sh.withholding));
+  }
+  L.push(sh.refund>0?('Projected REFUND                      '+money2(sh.refund))
+                    :('Projected balance due                 '+money2(sh.balanceDue)));
+  L.push('Shortfall vs safe harbor              '+money2(sh.shortfallVsSafe));
+  if(sh.refund<=0 && sh.deMinimis) L.push('Under '+money2(sh.deMinimisThreshold)+' → no penalty regardless.');
+  if(inp.periodsLeft>0 && sh.shortfallVsSafe>0)
+    L.push('Add per paycheck (safe harbor): '+money2(sh.shortfallVsSafe)+' ÷ '+inp.periodsLeft+' = '+money2(sh.shortfallVsSafe/inp.periodsLeft));
+  return L.join('\n');
+}
+function caWorksheet(inp, ca, sh){
+  const L=[];
+  L.push('CALIFORNIA — projected '+TAX.year+' (latest published schedule)');
+  L.push('────────────────────────────────────────');
+  L.push('CA AGI (wages, simplified)           '+money2(ca.caAgi));
+  L.push('Less CA standard deduction           -'+money2(ca.std));
+  L.push('CA taxable income                    '+money2(ca.taxable));
+  L.push('CA tax (brackets)                    '+money2(ca.taxBeforeCredit));
+  if(ca.mentalHealth>0) L.push('  incl. 1% mental-health surcharge   '+money2(ca.mentalHealth));
+  L.push('Less exemption credit                -'+money2(ca.exemptionCredit));
+  L.push('CA income tax                        '+money2(ca.tax));
+  L.push('');
+  L.push('SAFE HARBOR — required = SMALLER of:');
+  L.push('  90% of this year   = 0.90 × '+money2(sh.projectedTax)+' = '+money2(sh.o90));
+  if(sh.highIncomeBlocked) L.push('  AGI ≥ $1,000,000 → prior-year method NOT allowed; must use 90% current.');
+  else if(sh.priorTax>0){
+    L.push('  '+(sh.pyMultiplier===1.10?'110%':'100%')+' of last year = '+sh.pyMultiplier.toFixed(2)+' × '+money2(sh.priorTax)+' = '+money2(sh.priorTax*sh.pyMultiplier));
+    L.push('  (last-year AGI '+money2(sh.priorAgi)+(sh.priorAgi>sh.pyThreshold?' > ':' ≤ ')+money2(sh.pyThreshold)+' → '+(sh.pyMultiplier===1.10?'110%':'100%')+')');
+  } else L.push('  100%/110% of last year = (enter last year’s tax to use this)');
+  L.push('  → Required = '+money2(sh.required)+'  ('+sh.controllingLabel+')');
+  L.push('');
+  L.push('Projected CA withholding              '+money2(inp.fyCa));
+  if(inp.estCa>0){
+    L.push('Estimated payments already made       '+money2(inp.estCa));
+    L.push('Total paid in                         '+money2(sh.withholding));
+  }
+  L.push(sh.refund>0?('Projected REFUND                      '+money2(sh.refund))
+                    :('Projected balance due                 '+money2(sh.balanceDue)));
+  L.push('Shortfall vs safe harbor              '+money2(sh.shortfallVsSafe));
+  if(sh.refund<=0 && sh.deMinimis) L.push('Under '+money2(sh.deMinimisThreshold)+' → no penalty regardless.');
+  L.push('CA installments: 30% Apr15 / 40% Jun15 / 0% Sep / 30% Jan15.');
+  return L.join('\n');
+}
+
+/* =====================================================================
+   SELF-TEST
+   ===================================================================== */
+function selfTest(){
+  const R=[]; const approx=(a,b,t,name)=>{ const ok=Math.abs(a-b)<=t; R.push((ok?'PASS':'FAIL')+' '+name+'  ('+a.toFixed(2)+' vs '+b.toFixed(2)+')'); };
+  approx(bracketTax(115800,TAX.federal.brackets.mfj),14900,1,'Fed MFJ @115,800');
+  approx(bracketBreakdown(115800,TAX.federal.brackets.mfj).reduce((s,r)=>s+r.tax,0),14900,1,'Bracket breakdown sums to total');
+  approx(bracketTax(131900,TAX.federal.brackets.single),24254,1,'Fed Single @131,900');
+  approx(bracketTax(136588,TAX.ca.brackets.mfj),5695.14,1,'CA MFJ @136,588');
+  approx(periodsElapsed(64166.63,5833.33,'05/31/2026',24),11,0,'Periods elapsed');
+  approx(projectAmount(72166.63,5833.33,13,'project'),148000,0.5,'Projected FY wages');
+  const sh=safeHarbor(14900,10000,200000,9000,{pyThreshold:150000,pyThresholdMFS:75000,deMinimis:1000,isMFS:false});
+  approx(sh.required,11000,1,'Safe harbor picks 110%');
+  R.push(sh.controllingLabel==='110% of last year'?'PASS controlling label = 110%':'FAIL controlling label');
+  // refund path
+  const sh2=safeHarbor(14900,0,0,17000,{pyThreshold:150000,pyThresholdMFS:75000,deMinimis:1000,isMFS:false});
+  approx(sh2.refund,2100,1,'Refund = WH - tax');
+  // CA schedule: shortfall 700, today before Apr15 -> 30/40/0/30 => 210/280/210
+  const sched=estSchedule(2026,new Date(2026,0,1),'ca',700);
+  approx(sched[0].amount,210,1,'CA Q1 = 30%');
+  approx(sched[1].amount,280,1,'CA Q2 = 40%');
+  // Self-employment tax (mom's Uber example: $4,474 net → ~$632 SE tax, ~$316 half)
+  const seMom=selfEmploymentTax(4474,0,TAX.se);
+  approx(seMom.tax,632,1,'SE tax (Uber $4,474 net)');
+  approx(seMom.halfDeduction,316,1,'Half SE deduction');
+  const seCap=selfEmploymentTax(100000,184500,TAX.se);
+  approx(seCap.ssPortion,0,1,'SE SS portion capped by W-2 wages');
+  R.push(selfEmploymentTax(300,0,TAX.se).tax===0?'PASS SE tax = 0 under $400':'FAIL SE under-$400');
+  // Additional Medicare 0.9%: MFJ wages 300k over 250k -> 450; single SE base 250k over 200k -> 450
+  approx(additionalMedicareTax(300000,0,'mfj',TAX.federal.addlMedicare),450,0.5,'Addl Medicare MFJ');
+  approx(additionalMedicareTax(0,250000,'single',TAX.federal.addlMedicare),450,0.5,'Addl Medicare on SE');
+
+  const pass=R.every(r=>r.startsWith('PASS'));
+  $('selftestMsg').innerHTML=(pass?'<span style="color:#16a34a">All self-tests passed.</span>':'<span style="color:#dc2626">Some self-tests FAILED.</span>')
+    +'<br><span style="font-family:monospace;font-size:11px;white-space:pre">'+R.join('\n')+'</span>';
+}
+
+/* =====================================================================
+   LEAD CAPTURE  (DEMO — cosmetic only)
+   ---------------------------------------------------------------------
+   This form looks and behaves like the real thing but does NOT send or
+   store anything yet. The real build is DEFERRED: capture leads and then
+   email + text the user every day until each due date. When ready, route
+   leads to BUSINESS_EMAIL (or a Formspree/webhook) and send the daily
+   reminders from a backend (e.g. Supabase + an email/SMS service).
+   ===================================================================== */
+const BUSINESS_EMAIL = 'info@fastinsights.io';   // where leads will go once wired up
+
+function fmtDate(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+// Quarterly estimated-tax due dates for the tax year that are still upcoming.
+function upcomingDueDates(){
+  const y=TAX.year;
+  const due=[ new Date(y,3,15), new Date(y,5,15), new Date(y,8,15), new Date(y+1,0,15) ];
+  const today=new Date(); today.setHours(0,0,0,0);
+  return due.filter(d=> d>=today);
+}
+function showReminderDates(){
+  const due=upcomingDueDates();
+  $('lead_dates').innerHTML = due.length
+    ? 'We’ll email and text you every day leading up to each due date: <strong>'+due.map(fmtDate).join(' · ')+'</strong>.'
+    : 'This year’s quarterly due dates have passed — sign up to be ready for next year.';
+}
+function submitLead(){
+  const first=val('lead_first').trim(), last=val('lead_last').trim(), email=val('lead_email').trim();
+  if(!first||!last||!email){ $('leadMsg').innerHTML='<span style="color:#dc2626">Please add your first name, last name, and email.</span>'; return; }
+  // DEMO: cosmetic confirmation only — nothing is sent or stored yet.
+  const due=upcomingDueDates().map(fmtDate).join(', ');
+  $('leadMsg').innerHTML=`<span style="color:#16a34a">Thanks, ${first}! You're signed up — we'll email and text you every day until ${due||'your next due date'}.</span>`;
+}
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+populateYears();
+applyYearLabels();
+seedAssumptions();
+showReminderDates();
+$('s_year').addEventListener('change', e=> setActiveYear(+e.target.value));
+$('s_filing').addEventListener('change', ()=>{ seedCaExempt(); formatInput($('a_ca_exempt')); });
+// one uploader for everything (paystubs/W-2s + last year's 1040/540)
+(()=>{ const dz=$('docDz'), fi=$('docFile');
+  dz.addEventListener('click', ()=>fi.click());
+  fi.addEventListener('change', async e=>{ await handleDocs(e.target.files); e.target.value=''; });
+  ['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+  dz.addEventListener('drop', async e=>{ await handleDocs(e.dataTransfer.files); });
+})();
+$('leadShowBtnHdr').addEventListener('click', ()=>{
+  const el=$('reminders'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  if($('lead_first')) setTimeout(()=>$('lead_first').focus(), 450);
+});
+$('leadBtn').addEventListener('click', submitLead);
+addSource();  // start with one card
+formatAll();
+// live number-format + color cues for all numeric inputs
+document.addEventListener('focusin', e=>{ if(e.target.matches('input.num')) e.target.value=e.target.value.replace(/,/g,''); });
+document.addEventListener('focusout', e=>{ if(e.target.matches('input.num')) formatInput(e.target); });
+document.addEventListener('input', e=>{ if(e.target.matches('input.num')) colorize(e.target); markDirty(); });
+document.addEventListener('change', e=>{ if(e.target.matches('select,input')) markDirty(); });
+$('addSourceBtn').addEventListener('click', ()=>addSource(true));
+$('toggleAllBtn').addEventListener('click', toggleAllSections);
+$('downloadBtn').addEventListener('click', openDownloadChoice);
+$('dlPdfBtn').addEventListener('click', downloadPDF);
+$('dlCsvBtn').addEventListener('click', downloadCsv);
+$('dlCancelBtn').addEventListener('click', hideDownloadModal);
+$('downloadModal').addEventListener('click', e=>{ if(e.target.id==='downloadModal') hideDownloadModal(); });
+// One button toggles between loading the demo and clearing it again.
+$('demoBtn').addEventListener('click', ()=>{
+  if(demoLoaded){ clearAll(); }                 // clearAll() flips the label back to "Demo"
+  else { loadDemo(); demoLoaded=true; $('demoBtn').textContent='Clear'; }
+});
+$('clearPriorBtn').addEventListener('click', e=>{
+  e.preventDefault(); e.stopPropagation();   // button lives in <summary>; don't toggle the section
+  ['s_pyfed','s_pyca','s_pyagi'].forEach(id=>{ $(id).value='0'; });
+  formatAll(); markDirty();
+  $('clearPriorBtn').textContent='Removed ✓'; setTimeout(()=>{ $('clearPriorBtn').textContent='Remove'; }, 1500);
+});
+$('modalCalcBtn').addEventListener('click', ()=>{ hideUploadModal(); calculate(); $('results').scrollIntoView({behavior:'smooth',block:'start'}); });
+$('modalCloseBtn').addEventListener('click', hideUploadModal);
+$('uploadModal').addEventListener('click', e=>{ if(e.target.id==='uploadModal') hideUploadModal(); });
+$('sourcesList').addEventListener('click', e=>{
+  const rm=e.target.getAttribute('data-remove'); if(rm!==null){ e.preventDefault(); removeSource(+rm); }
+  const rb=e.target.getAttribute('data-remember'); if(rb!==null) rememberEmployer(+rb);
+});
+addSeSource();   // start with one 1099 payer card
+$('addSeBtn').addEventListener('click', ()=>addSeSource(true));
+$('seList').addEventListener('click', e=>{
+  const rm=e.target.getAttribute('data-seremove'); if(rm!==null){ e.preventDefault(); removeSeSource(+rm); }
+});
+$('calcBtnTop').addEventListener('click', calculate);
+$('selftestBtn').addEventListener('click', selfTest);
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Vercel (local project link)
+.vercel
+
+# Local agent / editor / OS tooling
+.claude/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Obsidian vault state (per-user notes, not app code)
+.obsidian/
+
+# Personal documents / uploads — never commit paystubs, W-2s, 1099s, or returns
+*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# Logs
+*.log
