@@ -5,3 +5,9 @@ Paycheck_2026-05-31.pdf
 .vercel
 .gitignore
 .vercelignore
+
+# Repo docs & durable agent-state: keep them in git, but never serve them on the public site.
+*.md
+CLAUDE.md
+README.md
+agent-state
