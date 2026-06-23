@@ -141,8 +141,8 @@
 <!-- ============================ STEP 1: SOURCES ============================ -->
 <section class="card">
   <h2><span class="step">1</span>Upload your documents</h2>
-  <p class="sub">Drop everything here &mdash; paystubs, W-2s, <strong>1099-NECs</strong>, in-year <strong>earnings statements</strong> (Uber, Lyft, etc.), and last year's 1040 &amp; CA 540. Read locally; nothing is uploaded. We sort each file: paystubs/W-2s &rarr; income sources, 1099s &amp; gig statements &rarr; self-employment income (they add up across the year), returns &rarr; the prior-year fields in Step 2.</p>
-  <div class="dropzone" id="docDz">Click or drag your documents here (PDF, PNG, JPG) &mdash; paystubs, W-2s, 1099-NEC, Uber/Lyft statements, 1040, 540
+  <p class="sub">Drop everything here &mdash; paystubs, W-2s, <strong>1099-NECs</strong>, in-year <strong>earnings statements</strong> (Uber, Lyft, etc.), and last year's 1040 &amp; <span id="lbl_upload_return">CA 540</span>. Read locally; nothing is uploaded. We sort each file: paystubs/W-2s &rarr; income sources, 1099s &amp; gig statements &rarr; self-employment income (they add up across the year), returns &rarr; the prior-year fields in Step 2.</p>
+  <div class="dropzone" id="docDz">Click or drag your documents here (PDF, PNG, JPG) &mdash; paystubs, W-2s, 1099-NEC, Uber/Lyft statements, 1040, state return
     <input type="file" id="docFile" accept=".pdf,image/*" multiple class="hidden"></div>
   <div id="docStatus" class="statusmsg"></div>
   <h3 style="font-size:14px;margin:16px 0 6px">Income sources (paystubs / W-2s)</h3>
@@ -154,13 +154,13 @@
 <section class="card">
   <details id="se_details">
   <summary class="collapse-head">Self-employment / 1099 income (independent contractor)</summary>
-  <p class="sub" style="margin-top:8px">Optional &mdash; leave empty if none. Add a card per payer (Uber, DoorDash, a client, etc.). 1099 income has <strong>no withholding</strong>, so it usually means estimated payments. We total your net profit, self-employment (SE) tax, and roll both into the federal &amp; California estimate below.</p>
+  <p class="sub" style="margin-top:8px">Optional &mdash; leave empty if none. Add a card per payer (Uber, DoorDash, a client, etc.). 1099 income has <strong>no withholding</strong>, so it usually means estimated payments. We total your net profit, self-employment (SE) tax, and roll both into the federal &amp; <span id="lbl_se_est">California</span> estimate below.</p>
   <div id="seList"></div>
   <button class="btn secondary" id="addSeBtn">+ Add a 1099 / self-employment payer</button>
   <div class="grid" style="margin-top:12px">
     <div class="row"><label>W-2 wages already taxed for Social Security &mdash; same person (optional)</label><input class="num money" id="se_w2ss" value="0"></div>
   </div>
-  <p class="note">Net profit = gross + tips &minus; expenses &minus; mileage (miles &times; the 2026 standard rate), summed across payers. SE tax = 15.3% on 92.35% of net profit (12.4% Social Security up to the wage base + 2.9% Medicare); half is deducted from income. The W-2 field only matters if the <em>same person</em> with the 1099 also has a W-2 &mdash; it lowers the Social Security portion. California has no separate SE tax, but the net profit is still CA taxable income.</p>
+  <p class="note">Net profit = gross + tips &minus; expenses &minus; mileage (miles &times; the 2026 standard rate), summed across payers. SE tax = 15.3% on 92.35% of net profit (12.4% Social Security up to the wage base + 2.9% Medicare); half is deducted from income. The W-2 field only matters if the <em>same person</em> with the 1099 also has a W-2 &mdash; it lowers the Social Security portion. <span id="lbl_se_state">California has no separate SE tax, but the net profit is still California taxable income.</span></p>
   <div id="se_summary" class="note"></div>
   </details>
 </section>
@@ -169,7 +169,7 @@
 <section class="card">
   <details id="ss_details">
   <summary class="collapse-head">Social Security benefits &amp; FICA</summary>
-  <p class="sub" style="margin-top:8px">Optional &mdash; leave at 0 if none. Enter Social Security <strong>benefits you receive</strong> (retirement, SSDI, or survivor &mdash; box 5 of the SSA-1099). Up to <strong>85% is taxable federally</strong> depending on your other income; <strong>California does not tax Social Security at all</strong>, so the tool removes it from your CA income automatically.</p>
+  <p class="sub" style="margin-top:8px">Optional &mdash; leave at 0 if none. Enter Social Security <strong>benefits you receive</strong> (retirement, SSDI, or survivor &mdash; box 5 of the SSA-1099). Up to <strong>85% is taxable federally</strong> depending on your other income; <span id="lbl_ss_state"><strong>California does not tax Social Security at all</strong>, so the tool removes it from your California income automatically.</span></p>
   <div class="grid">
     <div class="row"><label>Annual Social Security benefits received (SSA-1099 box 5)</label><input class="num money opt" id="ss_benefits" value="0"></div>
     <div class="row"><label>Tax-exempt interest (muni bonds, optional)</label><input class="num money opt" id="ss_taxexempt" value="0"></div>
@@ -233,7 +233,7 @@
 <section class="card">
   <details id="qbi_details">
   <summary class="collapse-head">Qualified Business Income deduction (§199A)</summary>
-  <p class="sub" style="margin-top:8px">A <strong>federal</strong> deduction of up to <strong>20%</strong> of qualified business income (your 1099/Schedule-C net profit + K-1 ordinary business income). It reduces federal taxable income only &mdash; <strong>California does not allow it</strong>. Overall cap: 20% of (taxable income − capital gains − qualified dividends).</p>
+  <p class="sub" style="margin-top:8px">A <strong>federal</strong> deduction of up to <strong>20%</strong> of qualified business income (your 1099/Schedule-C net profit + K-1 ordinary business income). It reduces federal taxable income only &mdash; <span id="lbl_qbi_state"><strong>California does not allow it</strong></span>. Overall cap: 20% of (taxable income − capital gains − qualified dividends).</p>
   <label class="checkrow"><input type="checkbox" id="qbi_enable" checked> Claim the 20% QBI deduction on my business income</label>
   <div class="grid">
     <div class="row"><label>Qualified business income override (optional)</label><input class="num money opt" id="qbi_amount" placeholder="auto = 1099 net + K-1 box 1"></div>
@@ -249,7 +249,7 @@
   <details>
   <summary class="collapse-head"><span class="step">2</span>Prior tax return information
     <button class="btn danger rm" id="clearPriorBtn" title="Remove">Remove</button></summary>
-  <p class="sub" style="margin-top:8px">A few facts the paystub can't tell us. Last year's numbers come from your prior return (Form 1040 / CA 540).</p>
+  <p class="sub" style="margin-top:8px">A few facts the paystub can't tell us. Last year's numbers come from your prior return (Form 1040 / <span id="lbl_py_return">CA 540</span>).</p>
   <div class="grid">
     <div class="row">
       <label>Tax year</label>
@@ -273,20 +273,20 @@
   <p class="note">Federal is calculated for everyone. Pick your <strong>state</strong> for a state estimate — all 50 states + DC are included (2026 or latest-published figures); no-income-tax states show a federal-only result. State figures are approximate (local/city taxes and some state-specific deductions/credits aren't modeled) — verify against your state's tax agency.</p>
   <div class="grid">
     <div class="row"><label>Last year's TOTAL federal tax (1040 line 22)</label><input class="num money" id="s_pyfed" value="0" /></div>
-    <div class="row"><label>Last year's TOTAL CA tax (540 line 64)</label><input class="num money" id="s_pyca" value="0" /></div>
+    <div class="row"><label id="lbl_pyca">Last year's TOTAL CA tax (540 line 64)</label><input class="num money" id="s_pyca" value="0" /></div>
     <div class="row"><label>Last year's AGI (1040 line 11)</label><input class="num money" id="s_pyagi" value="0" /></div>
   </div>
   <p class="note">Leave last year's numbers at 0 if you don't have them yet &mdash; the tool will just use the <strong>90% of this year</strong> safe harbor. Fill them in to unlock the usually-cheaper <strong>100% / 110% of last year</strong> option.</p>
   <div class="grid">
     <div class="row"><label>Net operating loss (NOL) carryforward — optional</label><input class="num money opt" id="s_nol" value="0" /></div>
   </div>
-  <p class="note">A prior-year <strong>NOL carryforward</strong> reduces this year's taxable income, but post-2017 NOLs offset at most <strong>80% of taxable income</strong> (§172) — the rest carries forward again. Applied to <strong>federal and California</strong> (they can differ; enter the controlling amount). <strong>California suspends</strong> the NOL deduction for 2024–2026 when income is <strong>$1M+</strong>.</p>
+  <p class="note">A prior-year <strong>NOL carryforward</strong> reduces this year's taxable income, but post-2017 NOLs offset at most <strong>80% of taxable income</strong> (§172) — the rest carries forward again. Applied to <strong>federal and <span id="lbl_nol_state">California</span></strong> (they can differ; enter the controlling amount). <span id="lbl_nol_susp"><strong>California suspends</strong> the NOL deduction for 2024–2026 when income is <strong>$1M+</strong>.</span></p>
 
   <details>
     <summary class="collapse-head">Estimated payments already made this year (optional)</summary>
-    <p class="sub" style="margin-top:8px">Quarterly 1040-ES (federal) and 540-ES (California) payments you've already sent. These add to what you've paid in, lowering the balance due and what's left to pay.</p>
+    <p class="sub" style="margin-top:8px">Quarterly 1040-ES (federal) and <span id="lbl_estpay_note">540-ES (California)</span> payments you've already sent. These add to what you've paid in, lowering the balance due and what's left to pay.</p>
     <table class="estpay" style="max-width:560px">
-      <thead><tr><th>Quarter</th><th>Federal (1040-ES)</th><th>California (540-ES)</th></tr></thead>
+      <thead><tr><th>Quarter</th><th>Federal (1040-ES)</th><th id="lbl_estpay_hdr">California (540-ES)</th></tr></thead>
       <tbody>
         <tr><td>Q1 — Apr 15</td><td><input class="num opt" id="est_fed_q1" value="0"></td><td><input class="num opt" id="est_ca_q1" value="0"></td></tr>
         <tr><td>Q2 — Jun 15</td><td><input class="num opt" id="est_fed_q2" value="0"></td><td><input class="num opt" id="est_ca_q2" value="0"></td></tr>
@@ -312,7 +312,7 @@
     <h2>Projected full year</h2>
     <p class="sub" id="projNote"></p>
     <table>
-      <thead><tr><th>Source</th><th>Wages</th><th>Federal tax withheld</th><th>CA tax withheld</th></tr></thead>
+      <thead><tr><th>Source</th><th>Wages</th><th>Federal tax withheld</th><th id="lbl_proj_wh">CA tax withheld</th></tr></thead>
       <tbody id="sourceRows"></tbody>
       <tbody style="font-weight:700"><tr>
         <td>Total (full-year projected)</td>
@@ -331,7 +331,7 @@
   <div class="card">
     <details>
       <summary id="bracketsTitle" class="collapse-head">2026 tax brackets &mdash; your marginal-rate math</summary>
-      <p class="sub" style="margin-top:8px">First we work down from your income to <strong>AGI</strong> and then <strong>taxable income</strong>; then tax is <strong>progressive</strong> &mdash; each slice of taxable income is taxed at its own 2026 rate, not your whole income at the top rate. The <strong>full IRS and FTB rate schedules</strong> are shown below (brackets your income doesn't reach are greyed out); long-term capital gains &amp; qualified dividends get the federal <strong>0/15/20%</strong> rates layered on top. Here's how the projected tax on the cards above is built up.</p>
+      <p class="sub" style="margin-top:8px">First we work down from your income to <strong>AGI</strong> and then <strong>taxable income</strong>; then tax is <strong>progressive</strong> &mdash; each slice of taxable income is taxed at its own 2026 rate, not your whole income at the top rate. The <strong>full IRS and state rate schedules</strong> are shown below (brackets your income doesn't reach are greyed out); long-term capital gains &amp; qualified dividends get the federal <strong>0/15/20%</strong> rates layered on top. Here's how the projected tax on the cards above is built up.</p>
       <h3 style="margin:8px 0 4px;font-size:14px">Federal (IRS)</h3>
       <div id="bracket_fed"></div>
       <h3 id="stateBracketHdr" style="margin:18px 0 4px;font-size:14px">California (FTB)</h3>
@@ -353,7 +353,7 @@
     <h2>Show the math</h2>
     <p class="sub">Every number above, step by step, so it can be checked.</p>
     <details><summary class="collapse-head">Federal worksheet</summary><div class="breakdown" id="bd_fed"></div></details>
-    <details><summary class="collapse-head">California worksheet</summary><div class="breakdown" id="bd_ca"></div></details>
+    <details><summary id="lbl_state_ws" class="collapse-head">California worksheet</summary><div class="breakdown" id="bd_ca"></div></details>
   </div>
 </section>
 
@@ -554,8 +554,8 @@ function applyYearLabels(){
   const y=TAX.year;
   if($('hdrYear')) $('hdrYear').textContent=y;
   if($('bracketsTitle')) $('bracketsTitle').innerHTML=y+' tax brackets &mdash; your marginal-rate math';
-  if($('assumeTitle')) $('assumeTitle').textContent=y+' federal & California figures used';
   if($('assumeStdHdr')) $('assumeStdHdr').textContent='Standard deduction ('+y+')';
+  // assumeTitle ("<year> federal & <state> figures used") is owned by updateAssumptionsForState().
 }
 function populateYears(){
   const sel=$('s_year'); if(!sel) return; sel.innerHTML='';
@@ -969,6 +969,60 @@ function updateAssumptionsForState(){
       : '<strong>'+name+'</strong>: standard deduction &amp; rates are from the state’s tax agency (2026 or latest-published figures) and are <strong>subject to change</strong> — not editable here; see the rate breakdown above. State estimated-payment rules vary.';
   }
   formatAll();
+  updateStateLabels();
+}
+// Make the static input-section labels & notes follow the selected state. Uses the state's NAME where
+// it's a clean swap, and the generic word "state" where a claim is behavior-dependent (e.g. SS taxation)
+// or the spot is a non-CA form number. Runs from updateAssumptionsForState() (load + every state change).
+function updateStateLabels(){
+  const code=val('s_state'); const S=STATES[code]||STATES[''];
+  const named = !!S.code;                       // a real, named state (not "Other / not added yet")
+  const isCA  = code==='CA';
+  const noTax = !!S.noTax;
+  const taxesSS = !!S.taxesSS;
+  const name = named ? S.name : 'your state';   // sentence context, lowercase lead-in
+  const Name = named ? S.name : 'Your state';   // sentence start
+  const hdr  = named ? S.name : 'State';        // labels / table headers
+  const set =(id,txt) =>{ const el=$(id); if(el) el.textContent=txt; };
+  const setH=(id,html)=>{ const el=$(id); if(el) el.innerHTML=html; };
+
+  // Upload note & prior-return doc name (form numbers vary by state → generic for non-CA)
+  set('lbl_upload_return', isCA ? 'CA 540' : 'state return');
+  set('lbl_py_return',     isCA ? 'CA 540' : 'state return');
+
+  // Self-employment notes
+  set('lbl_se_est', named ? name : 'state');
+  setH('lbl_se_state', noTax
+    ? `${Name} has no state income tax, so the net profit isn't taxed at the state level (the federal SE tax still applies).`
+    : `${Name} has no separate SE tax, but the net profit is still ${name} taxable income.`);
+
+  // Social Security treatment — depends on whether the state actually taxes SS
+  setH('lbl_ss_state', noTax
+    ? `<strong>${Name} has no state income tax</strong>, so Social Security isn't taxed at the state level.`
+    : (taxesSS
+        ? `<strong>${Name} taxes Social Security</strong> following the federal taxable amount.`
+        : `<strong>${Name} does not tax Social Security at all</strong>, so the tool removes it from your ${name} income automatically.`));
+
+  // QBI (§199A) — federal-only in this tool for every state
+  setH('lbl_qbi_state', noTax
+    ? `<strong>${Name} has no state income tax</strong>`
+    : `<strong>${name} does not allow it</strong>`);
+
+  // Prior-year state tax label (CA keeps its 540 line reference)
+  set('lbl_pyca', isCA ? "Last year's TOTAL California tax (540 line 64)"
+                       : `Last year's TOTAL ${hdr} tax`);
+
+  // NOL note — the $1M suspension is a California rule; hide it for other states
+  set('lbl_nol_state', name);
+  { const susp=$('lbl_nol_susp'); if(susp) susp.style.display = isCA ? '' : 'none'; }
+
+  // Estimated-payment note + column header (CA keeps the 540-ES form name)
+  setH('lbl_estpay_note', isCA ? '540-ES (California)' : `${hdr} estimated payments`);
+  set('lbl_estpay_hdr',   isCA ? 'California (540-ES)' : hdr);
+
+  // Projected-table header + "show the math" worksheet label
+  set('lbl_proj_wh',  `${hdr} tax withheld`);
+  set('lbl_state_ws', `${hdr} worksheet`);
 }
 
 /* =====================================================================
@@ -1307,7 +1361,7 @@ function sourceCardHTML(i){
           <tr><td>Bonus / other pay</td><td><input class="num" id="src_${i}_bonus_cur"></td><td><input class="num" id="src_${i}_bonus_ytd"></td></tr>
           <tr><td><strong>Total / gross pay</strong></td><td><input class="num" id="src_${i}_gross_cur"></td><td><input class="num" id="src_${i}_gross_ytd"></td></tr>
           <tr><td>Federal income tax withheld</td><td><input class="num" id="src_${i}_fedwh_cur"></td><td><input class="num" id="src_${i}_fedwh_ytd"></td></tr>
-          <tr><td>CA income tax withheld</td><td><input class="num" id="src_${i}_cawh_cur"></td><td><input class="num" id="src_${i}_cawh_ytd"></td></tr>
+          <tr><td>State income tax withheld</td><td><input class="num" id="src_${i}_cawh_cur"></td><td><input class="num" id="src_${i}_cawh_ytd"></td></tr>
         </tbody>
       </table>
       <div class="row" style="margin-top:8px"><label>Expected bonus still to come this year (optional)</label>
@@ -1317,7 +1371,7 @@ function sourceCardHTML(i){
     <div data-w2="${i}" class="grid hidden" style="margin-top:8px">
       <div class="row"><label>W-2 Box 1 — wages</label><input class="num" id="src_${i}_w2_wages"></div>
       <div class="row"><label>W-2 Box 2 — federal tax withheld</label><input class="num" id="src_${i}_w2_fedwh"></div>
-      <div class="row"><label>W-2 Box 17 — CA state tax withheld</label><input class="num" id="src_${i}_w2_cawh"></div>
+      <div class="row"><label>W-2 Box 17 — state tax withheld</label><input class="num" id="src_${i}_w2_cawh"></div>
     </div>
 
     <div class="controls">
@@ -1406,7 +1460,7 @@ function buildReportHtml(){
     <h2>Federal &amp; ${stName}</h2><div class="cards"><div class="rc">${$('card_federal').innerHTML}</div><div class="rc">${$('card_ca').innerHTML}</div></div>
     ${$('mexicoBlock') && $('mexicoBlock').innerHTML.trim() ? $('mexicoBlock').innerHTML : ''}
     <h2>Worksheets</h2><div class="breakdown">${$('bd_fed').textContent}</div><br><div class="breakdown">${$('bd_ca').textContent}</div>
-    <p class="note" style="margin-top:24px">This is an estimate only and not tax or legal advice. Verify all figures against the IRS, the California FTB, and your own return or advisor. Generated by the Estimated Tax tool.</p>
+    <p class="note" style="margin-top:24px">This is an estimate only and not tax or legal advice. Verify all figures against the IRS, ${stName}'s tax agency, and your own return or advisor. Generated by the Estimated Tax tool.</p>
     </body></html>`;
 }
 // PDF: open the report in a new window and trigger print (Save as PDF).
@@ -1533,7 +1587,7 @@ function rentCardHTML(i){
     <div class="grid hidden" data-mx="${i}" style="margin-top:4px">
       <div class="row"><label>Mexican ISR rate on gross rent (%)</label><input class="num opt" id="rent_${i}_mxrate" value="25"></div>
     </div>
-    <p class="note hidden" data-mx="${i}">Mexico taxes nonresident landlords a flat rate on <strong>gross</strong> rent (no deductions). This Mexican tax is shown <strong>separately</strong> — the rent is <em>also</em> U.S.-taxable (worldwide income), and California gives <strong>no</strong> foreign-tax credit, so expect tax in both. Registering an RFC may allow a lower net-based rate — enter that effective % instead.</p>
+    <p class="note hidden" data-mx="${i}">Mexico taxes nonresident landlords a flat rate on <strong>gross</strong> rent (no deductions). This Mexican tax is shown <strong>separately</strong> — the rent is <em>also</em> U.S.-taxable (worldwide income), and your state gives <strong>no</strong> foreign-tax credit, so expect tax in both. Registering an RFC may allow a lower net-based rate — enter that effective % instead.</p>
     </details>
   </div>`;
 }
@@ -2005,10 +2059,10 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   $('results').classList.remove('hidden');
   renderSESummary(inp, seInfo);
   renderRentSummary(inp, x);
-  renderK1Summary(inp, x);
-  renderSSSummary(inp, x);
-  renderInvSummary(inp, x);
-  renderQbiSummary(inp, x);
+  renderK1Summary(inp, x, ca);
+  renderSSSummary(inp, x, ca);
+  renderInvSummary(inp, x, ca);
+  renderQbiSummary(inp, x, ca);
 
   // Filing status drives the standard deduction and brackets, so keep it visible (and editable)
   // right on the results — a wrong/leftover filing status was otherwise easy to miss.
@@ -2046,7 +2100,7 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
        <div class="big">${money(0)}</div>
        <div class="sub">No state income tax to estimate. Your federal estimate (left) is what matters.${ca.code===''?' Your state is not added yet — federal-only for now.':''}</div>`
     : safeHarborCard(ca.name, caSH, inp.fyCa, inp.estCa, 0, 0, 0, 0, 0);
-  renderMexico(inp, x);
+  renderMexico(inp, x, ca);
 
   // bracket-by-bracket math — preceded by how AGI / taxable income are built up
   const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
@@ -2123,15 +2177,16 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
 }
 // Mexico rental tax — shown SEPARATELY (no U.S. credit applied), since the rent is also
 // taxed by the U.S. and California taxes worldwide income with no foreign-tax credit.
-function renderMexico(inp, x){
+function renderMexico(inp, x, ca){
   const el=$('mexicoBlock'); if(!el) return;
   const mx=inp.rentals.filter(r=>r.loc==='mx' && (r.rents>0 || r.mxTax>0));
   if(!mx.length){ el.innerHTML=''; return; }
+  const stName=(ca&&ca.code)?ca.name:'your state';
   let rows='';
   for(const r of mx) rows+=`<tr><td>${r.label}</td><td class="num">${money(r.rents)}</td><td class="num">${(r.mxRate*100).toFixed(1)}%</td><td class="num">${money(r.mxTax)}</td></tr>`;
   el.innerHTML=`<div class="card" style="border-color:#fcd34d;background:#fffbeb">
     <h2>Mexico rental property — Mexican income tax (ISR) <span class="pill info">separate from U.S. tax</span></h2>
-    <p class="sub">Nonresident landlords are taxed a flat rate on <strong>gross</strong> rent (no deductions). Shown on its own: the same rent is <strong>also</strong> included in your U.S. federal &amp; California income above (worldwide income), and California allows <strong>no</strong> foreign-tax credit — so you may owe in both countries.</p>
+    <p class="sub">Nonresident landlords are taxed a flat rate on <strong>gross</strong> rent (no deductions). Shown on its own: the same rent is <strong>also</strong> included in your U.S. federal &amp; ${stName} income above (worldwide income), and ${stName} allows <strong>no</strong> foreign-tax credit — so you may owe in both countries.</p>
     <table><thead><tr><th>Property</th><th>Gross rent</th><th>ISR rate</th><th>Mexican tax</th></tr></thead>
       <tbody>${rows}</tbody>
       <tbody style="font-weight:700"><tr><td>Total</td><td class="num">${money(inp.rentGrossMX)}</td><td></td><td class="num">${money(inp.mxTax)}</td></tr></tbody></table>
@@ -2152,14 +2207,18 @@ function renderSESummary(inp, seInfo){
     + `<br><strong>1099 income has no withholding</strong>, so it typically increases your estimated payments below.`;
 }
 // Live summary of Social Security taxation + FICA tracking.
-function renderSSSummary(inp, x){
+function renderSSSummary(inp, x, ca){
   const el=$('ss_summary'); if(!el) return;
   if(inp.ssBenefits<=0 && inp.ssFica<=0 && inp.ssMedicare<=0){ el.className='note'; el.textContent='No Social Security benefits or FICA entered.'; return; }
   el.className='note warn';
+  const stName=(ca&&ca.name)?ca.name:'Your state';
+  const ssClause = (ca&&!ca.noTax)
+    ? (ca.taxesSS ? `<strong>${stName}</strong> taxes it following the federal amount.` : `<strong>${stName} taxes $0</strong> of it.`)
+    : `<strong>${stName}</strong> has no state income tax.`;
   let html='';
   if(inp.ssBenefits>0){
     const s=x.ssInfo;
-    html += `Of <strong>${money(inp.ssBenefits)}</strong> in benefits, <strong>${money(s.taxable)}</strong> (${Math.round(s.pctTaxed*100)}%) is taxable <strong>federally</strong>; <strong>California taxes $0</strong> of it.`
+    html += `Of <strong>${money(inp.ssBenefits)}</strong> in benefits, <strong>${money(s.taxable)}</strong> (${Math.round(s.pctTaxed*100)}%) is taxable <strong>federally</strong>; ${ssClause}`
       + `<br>Provisional income ${money(s.provisional)} = other income + tax-exempt interest + ½ of benefits (tested against ${money(s.base1)} / ${money(s.base2)}).`;
   }
   if(inp.ssFica>0 || inp.ssMedicare>0){
@@ -2184,11 +2243,12 @@ function renderRentSummary(inp, x){
   el.innerHTML=html;
 }
 // Live summary of K-1 income.
-function renderK1Summary(inp, x){
+function renderK1Summary(inp, x, ca){
   const el=$('k1_summary'); if(!el) return;
   const any = inp.k1Ord||inp.k1Rental||inp.k1Gp||inp.k1Int||inp.k1Div||inp.k1Cap;
   if(!any){ el.className='note'; el.textContent='No K-1 income entered.'; return; }
   el.className='note warn';
+  const stName=(ca&&ca.name)?ca.name:'Your state'; const stHasTax=ca&&!ca.noTax;
   const parts=[];
   if(inp.k1Ord) parts.push(`ordinary ${money(inp.k1Ord)}`);
   if(inp.k1Gp) parts.push(`guaranteed pmts ${money(inp.k1Gp)}`);
@@ -2201,15 +2261,16 @@ function renderK1Summary(inp, x){
   if(inp.k1SeBase>0) html += `<br><strong>${money(inp.k1SeBase)}</strong> is treated as self-employment income (general-partner toggle) and added to the SE-tax base.`;
   else html += `<br>None marked subject to self-employment tax.`;
   if(inp.k1Rental) html += `<br>K-1 rental (box 2) is treated as <strong>passive</strong> (limited-partner default): income is taxed, but a loss is suspended (it can't use the $25k active-participation allowance).`;
-  html += `<br>Box 9a (long-term gain) &amp; qualified dividends get federal preferential rates; everything counts toward the 3.8% net-investment-income tax. California taxes it all as ordinary.`;
+  html += `<br>Box 9a (long-term gain) &amp; qualified dividends get federal preferential rates; everything counts toward the 3.8% net-investment-income tax.${stHasTax?` ${stName} taxes it all as ordinary.`:''}`;
   el.innerHTML=html;
 }
 // Live summary of personal investment income.
-function renderInvSummary(inp, x){
+function renderInvSummary(inp, x, ca){
   const el=$('inv_summary'); if(!el) return;
   const v=inp.inv;
   if(!(v.interest||v.ordDiv||v.qualDiv||v.ltcg||v.stcg)){ el.className='note'; el.textContent='No investment income entered.'; return; }
   el.className='note warn';
+  const stName=(ca&&ca.name)?ca.name:'Your state'; const stHasTax=ca&&!ca.noTax;
   const parts=[];
   if(v.interest) parts.push(`interest ${money(v.interest)}`);
   if(v.ordDiv) parts.push(`dividends ${money(v.ordDiv)}${v.qualDiv?` (${money(v.qualDiv)} qualified)`:''}`);
@@ -2222,23 +2283,24 @@ function renderInvSummary(inp, x){
     html += `<br><strong>${money(x.prefIncome)}</strong> (LT gains + qualified dividends, incl. any from K-1) is taxed federally at preferential rates`;
     const slices=[]; if(r.at0>0) slices.push(`${money(r.at0)} @ 0%`); if(r.at15>0) slices.push(`${money(r.at15)} @ 15%`); if(r.at20>0) slices.push(`${money(r.at20)} @ 20%`);
     if(slices.length) html += `: ${slices.join(', ')}`;
-    html += `. <strong>California taxes all of it as ordinary income.</strong>`;
+    html += `.${stHasTax?` <strong>${stName} taxes all of it as ordinary income.</strong>`:''}`;
   }
   if(x.cap.suspended<0) html += `<br>Net capital loss limited to ${money(-x.cap.inAGI)} this year; ${money(-x.cap.suspended)} carries forward (§1211).`;
   html += `<br>All of it (incl. short-term & ordinary dividends) counts toward the 3.8% net-investment-income tax.`;
   el.innerHTML=html;
 }
 // Live summary of the QBI (§199A) deduction.
-function renderQbiSummary(inp, x){
+function renderQbiSummary(inp, x, ca){
   const el=$('qbi_summary'); if(!el) return;
   const q=x.qbiInfo;
+  const stName=(ca&&ca.name)?ca.name:'Your state'; const stHasTax=ca&&!ca.noTax;
   if(x.qbiAmount<=0 || q.deduction<=0){
     el.className='note';
     el.textContent = x.qbiAmount<=0 ? 'No qualified business income (or deduction turned off).' : 'QBI deduction limited to $0 (income limit or SSTB phaseout).';
     return;
   }
   el.className='note good';
-  let html=`Federal QBI deduction <strong>${money(q.deduction)}</strong> = lesser of 20% of QBI (${money(q.tentative)}) and the 20%-of-taxable-income cap (${money(q.incomeLimit)}). Reduces federal taxable income only — <strong>California allows $0</strong>.`;
+  let html=`Federal QBI deduction <strong>${money(q.deduction)}</strong> = lesser of 20% of QBI (${money(q.tentative)}) and the 20%-of-taxable-income cap (${money(q.incomeLimit)}). Reduces federal taxable income only — <strong>${stHasTax?`${stName} allows $0`:`${stName} has no state income tax`}</strong>.`;
   if(x.isSSTB && q.aboveThreshold) html += `<br>Specified service business above the threshold: deduction phased ${Math.round((1-q.sstbFactor)*100)}% out.`;
   else if(q.aboveThreshold) html += `<br><em>Above the 2026 threshold — the actual deduction may be limited by W-2 wages/property (not modeled), so treat this as an optimistic upper bound.</em>`;
   el.innerHTML=html;
@@ -2279,15 +2341,15 @@ function renderBottomLine(inp, fedSH, caSH, ca){
   } else if(totalShortFull>0){
     // Safe harbor met (no penalty) but a balance is still due at filing — don't claim "no change needed".
     html+=`<div class="note warn"><strong>No underpayment penalty — your withholding already meets the safe harbor.</strong> But you'll still owe about <strong>${money(totalShortFull)}</strong> when you file${oweBreakdown}.`;
-    if(left>0) html+=`<br>To clear that bill before April, add about <strong>${money(totalShortFull/left)}/paycheck</strong> over your ${left} remaining checks (W-4 line 4c / CA DE-4), or simply set the money aside now.`;
+    if(left>0) html+=`<br>To clear that bill before April, add about <strong>${money(totalShortFull/left)}/paycheck</strong> over your ${left} remaining checks (W-4 line 4c${ca&&ca.code==='CA'?' / CA DE-4':''}), or simply set the money aside now.`;
     else html+=`<br>Set that money aside now so it's ready at filing, or send an optional estimated payment.`;
     html+=`</div>`;
   } else if(totalRefund>0){
     const reduceFed = (fedSH.refund>0 && left>0) ? fedSH.refund/left : 0;
     const reduceCa  = (caSH.refund>0  && left>0) ? caSH.refund/left  : 0;
-    html+=`<div class="note good"><strong>You're on track with a projected refund of ${money(totalRefund)}</strong> (${money(fedSH.refund)} federal + ${money(caSH.refund)} CA).`;
+    html+=`<div class="note good"><strong>You're on track with a projected refund of ${money(totalRefund)}</strong> (${money(fedSH.refund)} federal${showState?` + ${money(caSH.refund)} ${stAbbr}`:''}).`;
     if(left>0 && (reduceFed+reduceCa)>0){
-      html+=`<br>If you'd rather keep that money during the year instead of lending it interest-free, you could <strong>reduce withholding by about ${money(reduceFed+reduceCa)}/paycheck</strong> (${money(reduceFed)} fed + ${money(reduceCa)} CA) over your ${left} remaining checks and still cover your tax.`;
+      html+=`<br>If you'd rather keep that money during the year instead of lending it interest-free, you could <strong>reduce withholding by about ${money(reduceFed+reduceCa)}/paycheck</strong> (${money(reduceFed)} fed${showState?` + ${money(reduceCa)} ${stAbbr}`:''}) over your ${left} remaining checks and still cover your tax.`;
     }
     html+=`</div>`;
   } else {
@@ -2412,9 +2474,9 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
     L.push('Add per paycheck (safe harbor): '+money2(sh.shortfallVsSafe)+' ÷ '+inp.periodsLeft+' = '+money2(sh.shortfallVsSafe/inp.periodsLeft));
   if(inp.mxTax>0){
     L.push('');
-    L.push('MEXICO RENTAL TAX (separate — no U.S./CA credit)');
+    L.push('MEXICO RENTAL TAX (separate — no U.S./state credit)');
     L.push('  '+(TAX.mexico.rentalGrossRate*100).toFixed(0)+'% of gross rent '+money2(inp.rentGrossMX)+' = '+money2(inp.mxTax)+' ISR');
-    L.push('  (rent is also in U.S. + CA income above)');
+    L.push('  (rent is also in U.S. + state income above)');
   }
   return L.join('\n');
 }

@@ -3,26 +3,29 @@
 _Last updated: 2026-06-23_
 
 ## Active request status
-**COMPLETE** (deployed & working). One **deferred cosmetic issue** logged below — math is correct for every state;
-only some labels/notes still say "California."
+**COMPLETE** (the deferred cosmetic issue is now FIXED in the working tree; verified in-browser). Awaiting deploy
+decision / next change. Math remains correct for every state; the state NAME now follows the selected state everywhere.
 
-## KNOWN ISSUE — deferred to next session (cosmetic; results math is correct)
-When a non-CA state is selected, the **results** update (cards, rate breakdown, schedule, worksheet, Assumptions
-panel all follow the state) — but several **static input-section labels and a few live summary strings still hardcode
-"California"/"CA"**, so the state name doesn't update *everywhere*. Fix = swap these for the selected state's name (pass
-`ca.name`/`stateConfig(val('s_state')).name`, or genericize to "your state"). Spots (index.html):
-- Static HTML text: upload note "1040 & CA 540" (~L144); SE notes "federal & California estimate" / "California has no
-  separate SE tax … CA taxable income" (~L157, L163); SS note "California does not tax Social Security … CA income"
-  (~L172); QBI note "California does not allow it" (~L236); Step-2 "Form 1040 / CA 540" (~L252); input label
-  "Last year's TOTAL CA tax (540 line 64)" (~L276); NOL note "federal and California … California suspends" (~L283);
-  est-payments "540-ES (California)" header + col (~L287, L289); projected-table header "CA tax withheld" (~L315);
-  "California worksheet" <summary> label (~L356, content is dynamic); source-card input "CA income tax withheld"
-  (~L1310); PDF footer "the California FTB" (~L1409); Mexico notes "California gives/allows no foreign-tax credit"
-  (~L1536, L2134).
-- Live summary fns hardcoding "California": `renderSSSummary` ("California taxes $0") , `renderK1Summary`
-  ("California taxes it all as ordinary"), `renderInvSummary`, `renderQbiSummary` ("California allows $0"). Pass the
-  state name in (these already receive `inp`,`x`; add `ca`).
-Note: CA-prefixed input IDs (`a_ca_*`, `s_pyca`, `src_*_cawh_*`) are fine to keep as IDs — only the visible text needs to follow the state.
+## RESOLVED — state name follows the selected state in every label/note (2026-06-23)
+The previously-hardcoded "California"/"CA" UI text now retitles to the selected state. Mechanism: a new
+`updateStateLabels()` runs from the end of `updateAssumptionsForState()` (so on load + every state change), driven by
+`STATES[val('s_state')]`. Static input-section notes got `<span>`/`id` hooks; live result summaries + `renderMexico`
+now receive `ca` and use `ca.name`.
+- **Name vs generic:** the state NAME is used where it's a clean swap; the generic word "state" is used where a non-CA
+  form number would be wrong (source-card "State income tax withheld", "W-2 Box 17 — state tax withheld", upload "state
+  return", brackets sub "IRS and state rate schedules") or a claim is behavior-dependent.
+- **Behavior-aware (not just renamed):** the SS note branches on each state's `taxesSS` — the 8 SS-taxing states
+  (CO, CT, MN, MT, NM, RI, UT, VT) read "taxes Social Security following the federal amount"; no-tax states read "has no
+  state income tax"; the **CA-only $1M NOL-suspension** sentence (`#lbl_nol_susp`) is hidden for every other state. The
+  **CA DE-4** reference stays CA-only. PDF footer → "<state>'s tax agency"; bottom-line refund/owe lines use the state
+  code (NY/TX/…) not "CA".
+- **Label IDs added (index.html):** `lbl_upload_return`, `lbl_se_est`, `lbl_se_state`, `lbl_ss_state`, `lbl_qbi_state`,
+  `lbl_py_return`, `lbl_pyca`, `lbl_nol_state`, `lbl_nol_susp`, `lbl_estpay_note`, `lbl_estpay_hdr`, `lbl_proj_wh`,
+  `lbl_state_ws` — all set by `updateStateLabels()`.
+- **Verified:** in-app self-test = "All self-tests passed" (0 fail); no console errors; CA/NY/CO/TX/Other all retitle
+  correctly (CO → "taxes Social Security…"; TX → state clauses suppressed + federal-only bottom line; CA byte-identical).
+Note: CA-prefixed input IDs (`a_ca_*`, `s_pyca`, `src_*_cawh_*`) are still fine as IDs — only visible text follows the state.
+The `a_ca_exempt`/`a_ca_110` rows keep "CA" labels because they are shown only when California is selected.
 
 ## What this tool is now
 Single-file (`index.html`, ~195 KB, vanilla HTML/CSS/JS, no build) estimated-tax & safe-harbor calculator.
@@ -57,7 +60,7 @@ Covers, for **federal + all 50 states + DC**:
 - **Engine entry:** `calculate()` → `render()` + worksheets (`fedWorksheet`/`caWorksheet`) + `buildCsv`/`buildReportHtml`.
 
 ## How this was verified
-- `selfTest()` (the "Run self-test" button): **49/49 pass**. Run it after any edit.
+- `selfTest()` (the "Run self-test" button): **all pass (45 cases, 0 fail)** — verified in-browser 2026-06-23. Run it after any edit.
 - Multiple adversarial multi-agent reviews this session (SS/rental/K-1; LTCG/QDI+QBI; NOL; NOL→AGI cascade;
   state-data accuracy across all 41 income-tax states). All confirmed findings were fixed.
 - California is **byte-identical** to the original (MFJ $80k → fed $5,240 / CA $1,173) — the regression guard.

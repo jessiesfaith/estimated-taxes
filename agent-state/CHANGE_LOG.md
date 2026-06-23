@@ -2,6 +2,22 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Fix: state name now follows the selected state in ALL labels/notes (resolves the deferred cosmetic issue)
+- New `updateStateLabels()` (runs from `updateAssumptionsForState()`, i.e. on load + every state change) retitles the
+  previously-hardcoded "California"/"CA" UI text to the selected state. Added `<span>`/`id` hooks to the static
+  input-section notes (upload, SE, Social Security, QBI, prior-return label, NOL, est-payments note+header, projected
+  table header, worksheet `<summary>`).
+- State NAME used where it's a clean swap; generic word "state" where a non-CA form number applies (source-card
+  "State income tax withheld", W-2 Box 17, upload "state return") or a fact is behavior-dependent.
+- **Correctness, not just renaming:** the Social Security note branches on each state's `taxesSS` flag — the 8 SS-taxing
+  states (CO, CT, MN, MT, NM, RI, UT, VT) now read "taxes Social Security following the federal amount"; no-tax states
+  read "has no state income tax"; the CA-only $1M NOL-suspension sentence is hidden for every other state.
+- Live result summaries (`renderSSSummary`/`renderK1Summary`/`renderInvSummary`/`renderQbiSummary`) + `renderMexico` now
+  take `ca` and use `ca.name`; PDF footer says "<state>'s tax agency"; bottom-line refund/owe lines use the state code
+  (NY/TX/…) not "CA"; CSV Mexico lines genericized. CA-DE-4 reference stays CA-only.
+- Verified in-browser: self-test "All self-tests passed" (0 fail); no console errors; CA/NY/CO/TX/Other all retitle
+  correctly (CO shows "taxes Social Security…", TX suppresses the state clauses & shows federal-only bottom line).
+
 ## 2026-06-23 - Log deferred cosmetic issue (state name doesn't update everywhere)
 - User noticed some input-section labels/notes still say "California" after selecting another state (results math is
   correct for all states; only visible labels/summary strings are hardcoded). Deferred per user request; documented
