@@ -20,6 +20,19 @@ Initialize the agent-state workflow for Estimated_taxes (seed agent-state/ + CLA
 
 ---
 
+## Most recent request (2026-06-23)
+**Request:** Make the state NAME follow the selected state in every UI label/note (resolve the deferred cosmetic issue);
+use the generic word "state" where it's easier/more correct, but prefer the state name.
+**Acceptance criteria:**
+- [x] All previously-hardcoded "California"/"CA" visible text retitles to the selected state (input notes, labels,
+      table headers, worksheet label, live result summaries, Mexico note, PDF footer, bottom-line).
+- [x] Behavior-dependent claims stay correct (SS note branches on `taxesSS`; CA-only NOL suspension & DE-4 hidden for
+      other states; no-tax states say "no state income tax").
+- [x] Math unchanged: self-test all pass (45 cases, 0 fail); no console errors; CA byte-identical.
+- [x] Deployed (git push → Vercel) and live (estimated-taxes.vercel.app = 200, new markers served).
+**Files involved:** `index.html` (new `updateStateLabels()` + span/id hooks + summary signatures).
+**Status:** COMPLETE & deployed (commit `1099d91`).
+
 ## Next request goes here (overwrite this block when you start real work)
 **Request:** _(describe the next change)_
 **Acceptance criteria:** _(bullets)_
