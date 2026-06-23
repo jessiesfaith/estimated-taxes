@@ -16,8 +16,15 @@ Covers, for **federal + all 50 states + DC**:
   Gain Worksheet), **§199A QBI deduction**, 3.8% NIIT, 0.9% additional Medicare, SS taxation, $25k passive-loss
   allowance, §1211 capital-loss cap, §172 NOL (80% limit; cascades into AGI → SS taxability + NIIT MAGI).
 - **State calc:** generic state engine; each state has brackets/std/exemption/SS-treatment/cap-gains-exclusion/surtax.
+- **State UX:** a state selector in Step 2 + on the results banner; changing either **recomputes the form live** and
+  retitles every state-facing label to the chosen state. The **Assumptions panel is state-aware** — title, column
+  header, std-deduction figures, and source note follow the selected state (California editable; other states show
+  read-only built-in figures and hide the CA-only rows). `readAssumptions()` is guarded so a non-CA state's read-only
+  figures can't overwrite `TAX.ca`.
 - **Output:** 90/100/110% safe-harbor target, refund/shortfall, per-paycheck adjustment, quarterly schedule + due
   dates, full IRS + state progressive-rate breakdown ("show the math"), PDF + CSV download, self-test button.
+- **Disclaimer** leads with: state rates are from each state's tax agency and **subject to change**; everything is an
+  **estimate only and may not be correct** — verify with the IRS + your state's tax site.
 - Public page is **self-contained & unbranded** (no Fast Insights links/branding; repo docs not served — see below).
 
 ## Architecture (where things live in index.html)

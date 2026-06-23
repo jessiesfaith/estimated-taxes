@@ -2,6 +2,11 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Final clean + handoff refresh
+- Re-clean: no debug code/TODOs/orphaned functions (every fn referenced; `mxnPerUsd` already removed); repo tree clean.
+- Refreshed `HANDOFF.md` to include the post-handoff changes (live state recompute, state-aware Assumptions panel,
+  updated disclaimer). All in production; git clean and in sync with origin.
+
 ## 2026-06-23 - State change recomputes the form + state-aware Assumptions panel
 - Selecting a state in the Step-2 dropdown now recomputes the results immediately (was: required a Calculate click;
   only the results-banner selector auto-recalced).
