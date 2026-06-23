@@ -22,9 +22,11 @@ leaves the browser.
 ## Key behavior
 - One page; income inputs -> estimated annual/quarterly federal + CA tax + safe-harbor target. All computation in JS.
 - Income sections (each a collapsible card group): W-2/paystub sources, 1099 self-employment, **Social Security**
-  (taxed up to 85% fed / 0% CA + FICA & excess-SS-credit tracking), **passive rental (Schedule E, US + Mexico)**
-  with the $25k loss allowance + 3.8% NIIT, and **Schedule K-1** (partnership/S-corp/trust). Mexico rental also
-  estimates Mexican ISR (25% of gross) shown separately. (Added 2026-06-22 - see CHANGE_LOG.)
+  (taxed up to 85% fed / 0% CA + FICA & excess-SS-credit tracking), **investment income** (interest, ordinary +
+  qualified dividends, LT + ST gains — federal 0/15/20% preferential rates, CA ordinary), **passive rental
+  (Schedule E, US + Mexico)** with the $25k loss allowance + 3.8% NIIT, **Schedule K-1** (partnership/S-corp/trust),
+  and the **§199A QBI deduction** (federal only). Mexico rental also estimates Mexican ISR (25% of gross) shown
+  separately. Federal preferential rates / QBI never touch the CA computation. (Added 2026-06-22 - see CHANGE_LOG.)
 - No persistence beyond the browser session.
 
 ## Git

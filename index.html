@@ -125,7 +125,7 @@
 <header>
   <div class="hdr-text">
     <h1>W-2 Estimated Tax &amp; Safe-Harbor Tool</h1>
-    <p><strong>Tax year <span id="hdrYear">2026</span></strong> &middot; Wages/W-2s, 1099 self-employment, Social Security, rental (incl. Mexico) &amp; K-1s &rarr; project the year &rarr; refund or shortfall, the 90/100/110% targets, per-paycheck adjustment, and payment due dates. Federal + California. Estimate only.</p>
+    <p><strong>Tax year <span id="hdrYear">2026</span></strong> &middot; Wages, 1099/SE, Social Security, investment income (LTCG/dividends), rental (incl. Mexico), K-1s &amp; the QBI deduction &rarr; project the year &rarr; refund or shortfall, the 90/100/110% targets, per-paycheck adjustment, and payment due dates. Federal + California. Estimate only.</p>
   </div>
   <div class="hdr-actions">
     <button class="btn outline" id="demoBtn">Demo</button>
@@ -188,6 +188,25 @@
   </details>
 </section>
 
+<!-- ====================== INVESTMENT INCOME (brokerage) ====================== -->
+<section class="card">
+  <details id="inv_details">
+  <summary class="collapse-head">Investment income (interest, dividends, capital gains)</summary>
+  <p class="sub" style="margin-top:8px">Optional &mdash; from your brokerage 1099-INT / 1099-DIV / 1099-B. <strong>Long-term capital gains</strong> and <strong>qualified dividends</strong> get the federal <strong>0% / 15% / 20%</strong> preferential rates (stacked on top of your other income); short-term gains, ordinary dividends, and interest are taxed at your regular rates. <strong>California taxes all of it as ordinary income</strong> (no preferential rate), and all of it counts toward the 3.8% Net Investment Income Tax.</p>
+  <div class="grid">
+    <div class="row"><label>Taxable interest (1099-INT box 1)</label><input class="num money opt" id="inv_interest" value="0"></div>
+    <div class="row"><label>Ordinary dividends — total (1099-DIV box 1a)</label><input class="num money opt" id="inv_ord_div" value="0"></div>
+    <div class="row"><label>Qualified dividends — subset of total (box 1b)</label><input class="num money opt" id="inv_qual_div" value="0"></div>
+  </div>
+  <div class="grid">
+    <div class="row"><label>Net long-term capital gain (Schedule D)</label><input class="num money" id="inv_ltcg" value="0"></div>
+    <div class="row"><label>Net short-term capital gain (Schedule D)</label><input class="num money" id="inv_stcg" value="0"></div>
+  </div>
+  <p class="note">Qualified dividends are a <strong>subset</strong> of your ordinary dividends (box 1b ≤ box 1a) &mdash; enter the total in 1a and the qualified portion in 1b; don't add them twice. A net capital <strong>loss</strong> offsets up to $3,000 ($1,500 MFS) of other income; the rest carries forward. Special-rate gains (real-estate §1250 recapture 25%, collectibles 28%, QSBS) aren't modeled.</p>
+  <div id="inv_summary" class="note"></div>
+  </details>
+</section>
+
 <!-- ====================== PASSIVE RENTAL INCOME (Schedule E) ====================== -->
 <section class="card">
   <details id="rent_details">
@@ -203,10 +222,25 @@
 <section class="card">
   <details id="k1_details">
   <summary class="collapse-head">Schedule K-1 income (partnership / S-corp / trust)</summary>
-  <p class="sub" style="margin-top:8px">Optional. One card per K-1. Enter the boxes that have amounts. <strong>Ordinary business income</strong> and <strong>guaranteed payments</strong> add to your income; tick <em>"subject to SE tax"</em> only if you're a <strong>general partner</strong> materially participating (limited partners and S-corp shareholders are usually not). <strong>Interest, dividends, and rental</strong> from the K-1 add to income and count toward the 3.8% investment-income tax. Capital gains are included as ordinary here &mdash; long-term gains may actually be taxed at lower rates, so treat that line as conservative.</p>
+  <p class="sub" style="margin-top:8px">Optional. One card per K-1. Enter the boxes that have amounts. <strong>Ordinary business income</strong> and <strong>guaranteed payments</strong> add to your income; tick <em>"subject to SE tax"</em> only if you're a <strong>general partner</strong> materially participating (limited partners and S-corp shareholders are usually not). <strong>Interest, dividends, and rental</strong> add to income and count toward the 3.8% investment-income tax. <strong>Net capital gain (box 9a)</strong> is treated as <strong>long-term</strong> &mdash; it gets the federal 0/15/20% preferential rate; <strong>qualified dividends (box 6b)</strong> too. California taxes all of it as ordinary.</p>
   <div id="k1List"></div>
   <button class="btn secondary" id="addK1Btn">+ Add a K-1</button>
   <div id="k1_summary" class="note"></div>
+  </details>
+</section>
+
+<!-- ====================== QBI (§199A) ====================== -->
+<section class="card">
+  <details id="qbi_details">
+  <summary class="collapse-head">Qualified Business Income deduction (§199A)</summary>
+  <p class="sub" style="margin-top:8px">A <strong>federal</strong> deduction of up to <strong>20%</strong> of qualified business income (your 1099/Schedule-C net profit + K-1 ordinary business income). It reduces federal taxable income only &mdash; <strong>California does not allow it</strong>. Overall cap: 20% of (taxable income − capital gains − qualified dividends).</p>
+  <label class="checkrow"><input type="checkbox" id="qbi_enable" checked> Claim the 20% QBI deduction on my business income</label>
+  <div class="grid">
+    <div class="row"><label>Qualified business income override (optional)</label><input class="num money opt" id="qbi_amount" placeholder="auto = 1099 net + K-1 box 1"></div>
+  </div>
+  <label class="checkrow"><input type="checkbox" id="qbi_sstb"> Specified service business (health, law, accounting, consulting, finance, etc.)</label>
+  <p class="note">Auto-fills to your 1099 net profit + K-1 ordinary income (override if different). <strong>Guaranteed payments, wages, interest, dividends, and capital gains are not QBI.</strong> Below the 2026 threshold (<strong>$201,750 single / $403,500 MFJ</strong>) you get the full 20%. Above it, an <strong>SSTB</strong> phases out to $0, and a non-SSTB may be limited by W-2 wages / property — that wage limit isn't modeled, so above-threshold non-SSTB figures are an <em>optimistic upper bound</em>.</p>
+  <div id="qbi_summary" class="note"></div>
   </details>
 </section>
 
@@ -366,9 +400,11 @@
 </section>
 
 <p class="disclaimer">
-  This tool produces an <strong>estimate only</strong> and is not tax or legal advice. Simplifications: capital gains are
-  treated as ordinary income (long-term gains may be taxed lower); QBI/§199A, AMT, most credits, and itemized deductions
-  beyond the standard are not modeled; suspended passive losses are flagged but not carried between years; Mexican rental
+  This tool produces an <strong>estimate only</strong> and is not tax or legal advice. It models long-term capital gains &amp;
+  qualified dividends at the federal 0/15/20% rates and a simplified 20% §199A QBI deduction (federal only). Simplifications:
+  QBI W-2-wage/UBIA limits above the threshold aren't modeled (above-threshold non-SSTB figures are an optimistic upper bound);
+  special-rate gains (§1250 recapture 25%, collectibles 28%, QSBS) aren't covered; AMT, most credits, and itemized deductions
+  beyond the standard aren't modeled; suspended passive/capital losses are flagged but not carried between years; Mexican rental
   tax is shown separately with <strong>no</strong> U.S./CA foreign-tax credit applied. Verify all figures against the IRS,
   the California FTB, a Mexican contador (for ISR/IVA), and your own return or advisor before acting.
 </p>
@@ -448,6 +484,16 @@ const TAX_BY_YEAR = {
     // FICA Social Security wage base & rate — only used to flag excess SS tax withheld
     // when two or more employers each withheld up to the cap (refundable credit, Sch 3).
     fica:{ ssRate:0.062, ssWageBase:184500 },
+    // Preferential rates on net long-term capital gain + qualified dividends (Qualified Dividends
+    // & Capital Gain Tax Worksheet). 0% up to brk0, 15% up to brk15, 20% above — by TAXABLE income.
+    // 2026 from IRS Rev. Proc. 2025-32 §.03. (CA has NO preferential rate — federal-only.)
+    ltcg:{ brk0:{single:49450, mfj:98900, hoh:66200, mfs:49450},
+           brk15:{single:545500, mfj:613700, hoh:579600, mfs:306850}, rate15:0.15, rate20:0.20 },
+    // §199A Qualified Business Income deduction. 20% of QBI, capped at 20% of (taxable income before
+    // QBI − net capital gain − qualified dividends). 2026 thresholds (Rev. Proc. 2025-32); OBBBA widened
+    // the SSTB/wage phase-in to $75k single / $150k MFJ. (CA does NOT conform — federal-only.)
+    qbi:{ rate:0.20, threshold:{single:201750, mfj:403500, hoh:201750, mfs:201775},
+          phaseInRange:{single:75000, mfj:150000, hoh:75000, mfs:75000}, minDeduction:400, minQbiForMin:1000 },
   },
   ca: {
     // Latest published FTB schedule (2025 tax year) used as 2026 proxy.
@@ -542,6 +588,57 @@ function periodsElapsed(salaryYtd, salaryCur, payDate, periodsPerYear){
 function federalTax(agi, std, brackets, addl){
   const deduction=std+(addl||0); const taxable=Math.max(0,agi-deduction);
   return {agi, deduction, taxable, tax:bracketTax(taxable,brackets)};
+}
+// Schedule D netting (simplified): combine long-term (incl. K-1 box 9a) and short-term, apply the
+// $3,000/$1,500-MFS net-capital-loss cap against ordinary income, and isolate the LONG-TERM net gain
+// that qualifies for preferential rates. ST gain is ordinary; an ST loss offsets LT gain first.
+function netCapitalGain(longTerm, shortTerm, capFloor){
+  const overall = longTerm + shortTerm;
+  if(overall <= 0){                                   // net capital loss → limited, rest carries forward
+    const inAGI = Math.max(overall, capFloor);
+    return {inAGI, preferential:0, suspended:overall-inAGI, longTerm, shortTerm};
+  }
+  let pref;
+  if(shortTerm >= 0) pref = Math.max(0, longTerm);    // LT gain preferential; ST gain stays ordinary
+  else pref = Math.max(0, longTerm + shortTerm);      // ST loss eats into LT gain first
+  pref = Math.min(pref, overall);
+  return {inAGI:overall, preferential:pref, suspended:0, longTerm, shortTerm};
+}
+// Federal tax via the IRS "Qualified Dividends and Capital Gain Tax Worksheet" (stacking).
+// Ordinary income fills the brackets first; the preferential slice (net LT gain + qualified dividends)
+// is stacked on top and taxed at 0% up to brk0, 15% up to brk15, 20% above (by taxable income).
+// With prefIncome=0 this returns exactly bracketTax(taxable), so wage-only returns are unchanged.
+function federalPreferentialTax(taxable, prefIncome, brackets, ltcg, filing){
+  const pref=Math.max(0, Math.min(prefIncome, taxable));
+  const ordinary=Math.max(0, taxable-pref);
+  const ordTax=bracketTax(ordinary, brackets);
+  const b0=ltcg.brk0[filing]??ltcg.brk0.single;
+  const b15=ltcg.brk15[filing]??ltcg.brk15.single;
+  const at0  = Math.min(pref, Math.max(0, Math.min(taxable,b0) - ordinary));
+  const at15 = Math.min(pref-at0, Math.max(0, Math.min(taxable,b15) - Math.max(ordinary,b0)));
+  const at20 = Math.max(0, pref-at0-at15);
+  const prefTax = at15*ltcg.rate15 + at20*ltcg.rate20;
+  const tax = Math.min(ordTax+prefTax, bracketTax(taxable, brackets));   // worksheet "lesser of" guard
+  return {taxable, ordinary, pref, ordTax, prefTax, tax, at0, at15, at20};
+}
+// §199A QBI deduction (simplified for a tool without entity W-2/UBIA/SSTB data):
+// 20% of QBI, capped at 20% of (taxable income before QBI − net capital gain − qualified dividends),
+// with the OBBBA $400 minimum when QBI ≥ $1,000. An SSTB above the threshold phases the deduction out
+// over the phase-in range. Non-SSTB above the threshold keeps 20% (the W-2/UBIA cap can't be computed
+// here → flagged as an optimistic upper bound). CA never calls this (no §199A conformity).
+function qbiDeduction(qbi, taxableBeforeQBI, prefIncome, filing, cfg, isSSTB){
+  if(qbi<=0) return {deduction:0, tentative:0, incomeLimit:0, qbi:0, sstbFactor:1, ratio:0, aboveThreshold:false};
+  const thr=cfg.threshold[filing]??cfg.threshold.single;
+  const range=cfg.phaseInRange[filing]??cfg.phaseInRange.single;
+  const over=Math.max(0, taxableBeforeQBI-thr);
+  const ratio=range>0 ? Math.min(1, over/range) : (over>0?1:0);
+  const sstbFactor = isSSTB ? (1-ratio) : 1;          // SSTB phases out across the range, gone above it
+  const effQbi=qbi*sstbFactor;
+  const tentative=cfg.rate*effQbi;
+  const incomeLimit=cfg.rate*Math.max(0, taxableBeforeQBI - Math.max(0,prefIncome));
+  let deduction=Math.min(tentative, incomeLimit);
+  if(effQbi>=cfg.minQbiForMin) deduction=Math.min(Math.max(deduction, cfg.minDeduction), incomeLimit);
+  return {deduction, tentative, incomeLimit, qbi, sstbFactor, ratio, aboveThreshold:over>0};
 }
 function californiaTax(caAgi, std, brackets, exemptionCredit, mhThr, mhRate){
   const taxable=Math.max(0,caAgi-std);
@@ -974,8 +1071,12 @@ function clearAll(){
   $('k1List').innerHTML=''; k1Count=0; addK1();
   ['s_otherincome','s_pyfed','s_pyca','s_pyagi','se_w2ss',
    'ss_benefits','ss_taxexempt','ss_fica_withheld','ss_medicare_withheld',
+   'inv_interest','inv_ord_div','inv_qual_div','inv_ltcg','inv_stcg','qbi_amount',
    'est_fed_q1','est_fed_q2','est_fed_q3','est_fed_q4','est_ca_q1','est_ca_q2','est_ca_q3','est_ca_q4']
    .forEach(id=>{ if($(id)) $(id).value='0'; });
+  if($('qbi_amount')) $('qbi_amount').value='';   // blank = auto
+  if($('qbi_enable')) $('qbi_enable').checked=true;
+  if($('qbi_sstb')) $('qbi_sstb').checked=false;
   if($('s_filing')) $('s_filing').value='mfj';
   $('results').classList.add('hidden');
   if($('docStatus')) $('docStatus').textContent='';
@@ -1007,13 +1108,16 @@ function loadDemo(){
   set(`rent_${m}_label`,'Condo in Playa del Carmen'); set(`rent_${m}_loc`,'mx');
   set(`rent_${m}_rents`,'18000'); set(`rent_${m}_expenses`,'5000'); set(`rent_${m}_deprec`,'3000');
   set(`rent_${m}_mxrate`,'25'); applyRentLoc(m); updateRentTitle(m);
-  // K-1 from a passive partnership interest
+  // K-1 from a passive partnership interest (with some qualified dividends)
   set('k1_0_name','Acme Partners LP'); set('k1_0_type','partnership');
-  set('k1_0_ord','12000'); set('k1_0_int','800'); set('k1_0_div','1500');
+  set('k1_0_ord','12000'); set('k1_0_int','800'); set('k1_0_div','1500'); set('k1_0_qdiv','1500');
   updateK1Title(0);
+  // Personal brokerage: long-term gains + qualified dividends (federal preferential rates)
+  set('inv_interest','600'); set('inv_ord_div','3000'); set('inv_qual_div','2400');
+  set('inv_ltcg','15000'); set('inv_stcg','1000');
   set('s_filing','single'); seedCaExempt();
   set('s_pyfed','11000'); set('s_pyca','3500'); set('s_pyagi','120000');
-  ['src_0_details','se_0_details','ss_details','rent_details',`rent_${m}_details`,'k1_details']
+  ['src_0_details','se_0_details','ss_details','inv_details','rent_details',`rent_${m}_details`,'k1_details','qbi_details']
     .forEach(id=>{ if($(id)) $(id).open=true; });
   if($('rent_0_details')) $('rent_0_details').open=true;
   formatAll();
@@ -1185,6 +1289,10 @@ function buildCsv(){
   if(lc.x && lc.x.rentalNet) row('Net rental income (US + Mexico)', Math.round(lc.x.rentalNet));
   { const k1=lc.inp.k1Ord+lc.inp.k1Gp+lc.inp.k1Int+lc.inp.k1Div+lc.inp.k1Cap+lc.inp.k1Rental;
     if(k1) row('K-1 income', Math.round(k1)); }
+  { const iv=lc.inp.inv, invTot=iv.interest+iv.ordDiv+iv.ltcg+iv.stcg;
+    if(invTot) row('Investment income (interest/dividends/gains)', Math.round(invTot)); }
+  if(lc.x && lc.x.prefIncome>0) row('  of which LT gains + qualified dividends (fed preferential)', Math.round(lc.x.prefIncome));
+  if(lc.x && lc.x.qbiInfo && lc.x.qbiInfo.deduction>0) row('QBI deduction §199A (federal only)', Math.round(lc.x.qbiInfo.deduction));
   if(lc.x && lc.x.ssInfo && lc.x.ssInfo.taxable>0) row('Taxable Social Security (CA exempt)', Math.round(lc.x.ssInfo.taxable));
   row('');
   row('', 'Federal', 'California');
@@ -1345,8 +1453,9 @@ function k1CardHTML(i){
     </div>
     <div class="grid">
       <div class="row"><label>Interest income (box 5)</label><input class="num money" id="k1_${i}_int" value="0"></div>
-      <div class="row"><label>Ordinary dividends (box 6a)</label><input class="num money" id="k1_${i}_div" value="0"></div>
-      <div class="row"><label>Net capital gain (box 9a / 4a)</label><input class="num money" id="k1_${i}_cap" value="0"></div>
+      <div class="row"><label>Ordinary dividends — total (box 6a)</label><input class="num money" id="k1_${i}_div" value="0"></div>
+      <div class="row"><label>Qualified dividends — subset (box 6b)</label><input class="num money" id="k1_${i}_qdiv" value="0"></div>
+      <div class="row"><label>Net long-term capital gain (box 9a)</label><input class="num money" id="k1_${i}_cap" value="0"></div>
     </div>
     <label class="checkrow"><input type="checkbox" id="k1_${i}_se"> Ordinary income &amp; guaranteed payments are subject to self-employment tax (general partner, materially participating)</label>
     </details>
@@ -1373,11 +1482,23 @@ function gatherK1(){
   const arr=[];
   for(let i=0;i<k1Count;i++){ if(!$(`k1_${i}`)) continue;
     const se=$(`k1_${i}_se`) ? $(`k1_${i}_se`).checked : false;
+    const dividends=nval(`k1_${i}_div`);
+    const qualDiv=Math.min(nval(`k1_${i}_qdiv`), Math.max(0,dividends));   // qualified ≤ total ordinary
     arr.push({label:val(`k1_${i}_name`).trim()||('K-1 '+(i+1)), type:val(`k1_${i}_type`),
       ord:nval(`k1_${i}_ord`), rental:nval(`k1_${i}_rental`), gp:nval(`k1_${i}_gp`),
-      interest:nval(`k1_${i}_int`), dividends:nval(`k1_${i}_div`), cap:nval(`k1_${i}_cap`), se});
+      interest:nval(`k1_${i}_int`), dividends, qualDiv, cap:nval(`k1_${i}_cap`), se});
   }
   return arr;
+}
+// Personal brokerage investment income (1099-INT / 1099-DIV / 1099-B).
+function gatherInvestment(){
+  const ordDiv=nval('inv_ord_div');
+  return {
+    interest:nval('inv_interest'),
+    ordDiv,
+    qualDiv:Math.min(nval('inv_qual_div'), Math.max(0,ordDiv)),   // qualified ≤ total ordinary
+    ltcg:nval('inv_ltcg'), stcg:nval('inv_stcg'),
+  };
 }
 function addSource(open){
   const i=sourceCount++;
@@ -1527,8 +1648,12 @@ function gatherAll(){
   const k1Gp=k1s.reduce((a,k)=>a+k.gp,0);
   const k1Int=k1s.reduce((a,k)=>a+k.interest,0);
   const k1Div=k1s.reduce((a,k)=>a+k.dividends,0);
+  const k1QualDiv=k1s.reduce((a,k)=>a+k.qualDiv,0);
   const k1Cap=k1s.reduce((a,k)=>a+k.cap,0);
   const k1SeBase=k1s.reduce((a,k)=> a + (k.se ? (k.ord + k.gp) : 0), 0);
+
+  // Personal brokerage investment income
+  const inv=gatherInvestment();
 
   // All rental (Sch E + K-1 box 2) pooled for the passive-loss allowance & NIIT.
   const rentPoolNet=rentUSnet+rentMXnet+k1Rental;
@@ -1539,7 +1664,8 @@ function gatherAll(){
     estFed, estCa,
     seSources, seGross, seTips, seExpenses, seMiles, seW2ss, seMileageDed, seNetProfit,
     rentals, rentUSnet, rentMXnet, rentGrossMX, mxTax, rentPoolNet, rentActiveFlag,
-    k1s, k1Ord, k1Rental, k1Gp, k1Int, k1Div, k1Cap, k1SeBase,
+    k1s, k1Ord, k1Rental, k1Gp, k1Int, k1Div, k1QualDiv, k1Cap, k1SeBase,
+    inv,
     ssBenefits:nval('ss_benefits'), ssTaxExempt:nval('ss_taxexempt'),
     ssFica:nval('ss_fica_withheld'), ssMedicare:nval('ss_medicare_withheld'),
     periodsLeft:sources.reduce((a,s)=>a+s.periodsLeft,0),
@@ -1554,18 +1680,18 @@ function calculate(){
   const seBaseInput = Math.max(0, inp.seNetProfit + inp.k1SeBase);
   const seInfo = selfEmploymentTax(seBaseInput, inp.seW2ss, TAX.se);
 
-  // K-1 capital LOSS is limited to $3,000 / $1,500 MFS against ordinary income (§1211(b));
-  // the unused remainder carries forward. (A gain passes through unchanged — see disclaimer.)
-  const k1CapFloor = isMFS ? -1500 : -3000;
-  const k1CapForAGI = Math.max(inp.k1Cap, k1CapFloor);
-  const k1CapSuspended = inp.k1Cap - k1CapForAGI;            // disallowed capital loss (carryforward), ≤ 0
+  // Capital gains (Schedule D): pool personal long-term + K-1 box-9a (long-term) and personal
+  // short-term; apply the $3,000/$1,500-MFS net-loss cap (§1211); isolate the preferential LT gain.
+  const capFloor = isMFS ? -1500 : -3000;
+  const cap = netCapitalGain(inp.inv.ltcg + inp.k1Cap, inp.inv.stcg, capFloor);
+  // Federal preferential-rate income = net LT capital gain + qualified dividends (personal + K-1).
+  const prefIncome = Math.max(0, cap.preferential + inp.inv.qualDiv + inp.k1QualDiv);
+
   // Passive rental: a net loss is limited to the $25k MAGI-phased allowance (active participation).
-  // MAGI proxy = all other income (before the rental loss and before Social Security).
+  // K-1 box-2 rental is treated as PASSIVE (limited-partner default) so its losses are suspended and
+  // can't borrow Schedule E's $25k allowance (§469(i)(6)(C)). MAGI proxy = all other income.
   const incomeExRental = inp.fyWages + inp.seNetProfit + inp.k1Ord + inp.k1Gp
-    + inp.k1Int + inp.k1Div + k1CapForAGI - seInfo.halfDeduction;
-  // Schedule E (US + Mexico) uses its active-participation flag; K-1 box-2 rental is treated as
-  // PASSIVE (limited-partner default) so its losses are suspended and can't borrow Schedule E's
-  // $25k allowance (§469(i)(6)(C)). Run them separately, then combine.
+    + inp.k1Int + inp.k1Div + inp.inv.interest + inp.inv.ordDiv + cap.inAGI - seInfo.halfDeduction;
   const seRentNet = inp.rentUSnet + inp.rentMXnet;
   const seRentAllow = rentalAllowedNet(seRentNet, incomeExRental, inp.rentActiveFlag, filing, TAX.rental);
   const k1RentAllow = rentalAllowedNet(inp.k1Rental, incomeExRental, false, filing, TAX.rental);
@@ -1578,40 +1704,56 @@ function calculate(){
   const provisional = modAGIexSS + inp.ssTaxExempt + 0.5*inp.ssBenefits;
   const ssInfo = taxableSocialSecurity(inp.ssBenefits, provisional, filing, TAX.federal.ssTaxation);
 
-  const agi = modAGIexSS + ssInfo.taxable;                   // federal AGI (includes taxable SS)
+  const agi = modAGIexSS + ssInfo.taxable;                   // federal AGI (includes taxable SS; before QBI)
   const addlMed = additionalMedicareTax(inp.fyWagesOnly, seInfo.seBase, filing, TAX.federal.addlMedicare);
 
-  // 3.8% Net Investment Income Tax on rental + portfolio income (federal only).
-  const nii = Math.max(0, rentalNet) + inp.k1Int + inp.k1Div + Math.max(0, inp.k1Cap);
+  // 3.8% NIIT on GROSS investment income (rental + interest + all dividends + net gains) — federal only.
+  // Uses gross amounts independent of the preferential-rate split and of QBI.
+  const nii = Math.max(0, rentalNet) + inp.k1Int + inp.k1Div + inp.inv.interest + inp.inv.ordDiv + Math.max(0, cap.inAGI);
   const niit = netInvestmentIncomeTax(nii, agi, filing, TAX.federal.niit);
 
   // Excess Social Security tax withheld across 2+ employers → refundable federal credit.
   const excessSS = excessSocialSecurityCredit(inp.ssFica, TAX.federal.fica);
   // Employer-withheld Additional Medicare Tax (0.9% on EACH job's wages over $200k) is credited on
-  // Form 8959 Part IV → 1040 line 25c. Computed per source so two sub-$200k W-2s correctly get $0,
-  // and only the wage (not SE) portion of the liability is offset.
+  // Form 8959 Part IV → 1040 line 25c. Computed per source so two sub-$200k W-2s correctly get $0.
   const addlMedWithheld = inp.sources.reduce((a,s)=>
     a + TAX.federal.addlMedicare.rate*Math.max(0, s.fyWages - TAX.federal.addlMedicare.employerWithholdFloor), 0);
 
+  // §199A QBI deduction (federal only, below the line). Default QBI = 1099 net (reduced by the
+  // §164(f) deductible half of SE tax, per Treas. Reg. §1.199A-3(b)(1)(vi)) + K-1 box-1 ordinary
+  // income (already net at the entity level). SE health-ins / retirement aren't modeled.
+  const qbiEnabled = $('qbi_enable') ? $('qbi_enable').checked : true;
+  const qbiOverride = num(val('qbi_amount'));
+  const qbiAmount = !qbiEnabled ? 0 : (qbiOverride>0 ? qbiOverride : Math.max(0, (inp.seNetProfit - seInfo.halfDeduction) + inp.k1Ord));
+  const isSSTB = $('qbi_sstb') ? $('qbi_sstb').checked : false;
+
   const fedStd=TAX.federal.std[filing]??TAX.federal.std.single;
   const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
-  const fed=federalTax(agi, fedStd, fedBr, 0);
+  const fedBase=federalTax(agi, fedStd, fedBr, 0);                  // AGI/std/taxable BEFORE QBI
+  const qbiInfo=qbiDeduction(qbiAmount, fedBase.taxable, prefIncome, filing, TAX.federal.qbi, isSSTB);
+  const fedTaxable=Math.max(0, fedBase.taxable - qbiInfo.deduction);
+  // Income tax via the Qualified Dividends & Capital Gain Tax Worksheet (preferential stacking).
+  const prefInfo=federalPreferentialTax(fedTaxable, prefIncome, fedBr, TAX.federal.ltcg, filing);
+  const fed={agi:fedBase.agi, deduction:fedBase.deduction, taxableBeforeQBI:fedBase.taxable,
+    taxable:fedTaxable, tax:prefInfo.tax};
   const fedProjected = fed.tax + seInfo.tax + addlMed + niit;  // income + SE + 0.9% surtax + 3.8% NIIT
   const fedSH=safeHarbor(fedProjected, inp.pyFed, inp.pyAgi, inp.fyFed + inp.estFed + excessSS + addlMedWithheld, {
     pyThreshold:TAX.federal.safeHarborPYthreshold, pyThresholdMFS:TAX.federal.safeHarborPYthresholdMFS,
     deMinimis:TAX.federal.deMinimis, isMFS});
 
-  // California starts from federal AGI but EXCLUDES Social Security entirely (caAgi = agi − taxable SS).
+  // California: starts from federal AGI but EXCLUDES Social Security; taxes ALL gains/dividends as
+  // ordinary (no preferential rate) and allows NO QBI deduction — so caAgi never sees pref/QBI.
   const caAgi = modAGIexSS;
   const caStd=TAX.ca.std[filing]??TAX.ca.std.single;
   const caBr=TAX.ca.brackets[filing]??TAX.ca.brackets.single;
-  const ca=californiaTax(caAgi, caStd, caBr, nval('a_ca_exempt'),   // CA: no SE/NIIT, but the income is taxable
+  const ca=californiaTax(caAgi, caStd, caBr, nval('a_ca_exempt'),
     TAX.ca.mentalHealthThreshold, TAX.ca.mentalHealthRate);
   const caSH=safeHarbor(ca.tax, inp.pyCa, inp.pyAgi, inp.fyCa + inp.estCa, {
     pyThreshold:TAX.ca.safeHarborPYthreshold, pyThresholdMFS:TAX.ca.safeHarborPYthresholdMFS,
     deMinimis:TAX.ca.deMinimis, highIncomeNoPY:TAX.ca.highIncomeNoPY, isMFS});
 
-  const x={niit, nii, ssInfo, rentAllow, rentalNet, excessSS, addlMedWithheld, k1CapForAGI, k1CapSuspended, mxTax:inp.mxTax};
+  const x={niit, nii, ssInfo, rentAllow, rentalNet, excessSS, addlMedWithheld, mxTax:inp.mxTax,
+    cap, prefIncome, prefInfo, qbiInfo, qbiAmount, isSSTB};
   lastCalc = {inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x};
   render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x);
   clearDirty();
@@ -1695,6 +1837,8 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   renderRentSummary(inp, x);
   renderK1Summary(inp, x);
   renderSSSummary(inp, x);
+  renderInvSummary(inp, x);
+  renderQbiSummary(inp, x);
 
   // Filing status drives the standard deduction and brackets, so keep it visible (and editable)
   // right on the results — a wrong/leftover filing status was otherwise easy to miss.
@@ -1738,21 +1882,37 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   if(inp.k1Ord!==0) fedSteps.push({label:'+ K-1 ordinary business income (box 1)', amount:inp.k1Ord});
   if(inp.k1Gp!==0) fedSteps.push({label:'+ K-1 guaranteed payments (box 4)', amount:inp.k1Gp});
   if(inp.k1Int!==0) fedSteps.push({label:'+ K-1 interest (box 5)', amount:inp.k1Int});
+  if(inp.inv.interest!==0) fedSteps.push({label:'+ Taxable interest (1099-INT)', amount:inp.inv.interest});
   if(inp.k1Div!==0) fedSteps.push({label:'+ K-1 dividends (box 6a)', amount:inp.k1Div});
-  if(x.k1CapForAGI!==0) fedSteps.push({label:'+ K-1 capital gain (box 9a/4a) — as ordinary'+(x.k1CapSuspended<0?' (loss capped at '+money(-x.k1CapForAGI)+')':''), amount:x.k1CapForAGI});
-  if(x.k1CapSuspended<0) fedSteps.push({label:`   (${money(-x.k1CapSuspended)} capital loss carries forward)`, amount:0});
+  if(inp.inv.ordDiv!==0) fedSteps.push({label:'+ Ordinary dividends (1099-DIV)', amount:inp.inv.ordDiv});
+  if(x.cap.inAGI!==0) fedSteps.push({label:'+ Net capital gain (Schedule D)'+(x.cap.suspended<0?' — loss capped':''), amount:x.cap.inAGI});
+  if(x.cap.suspended<0) fedSteps.push({label:`   (${money(-x.cap.suspended)} capital loss carries forward)`, amount:0});
   if(x.rentalNet!==0) fedSteps.push({label:'+ Net rental income (Schedule E, US + Mexico)', amount:x.rentalNet});
   if(seInfo.halfDeduction>0) fedSteps.push({label:'– ½ self-employment tax (deductible)', amount:-seInfo.halfDeduction});
   if(x.ssInfo.taxable>0) fedSteps.push({label:`+ Taxable Social Security (${Math.round(x.ssInfo.pctTaxed*100)}% of ${money(inp.ssBenefits)})`, amount:x.ssInfo.taxable});
   fedSteps.push({label:'= Adjusted gross income (AGI)', amount:fed.agi, bold:true});
   fedSteps.push({label:'– Standard deduction', amount:-fed.deduction});
-  fedSteps.push({label:'= Taxable income', amount:fed.taxable, bold:true});
+  if(x.qbiInfo.deduction>0){
+    fedSteps.push({label:'= Taxable income before QBI', amount:fed.taxableBeforeQBI, bold:true});
+    fedSteps.push({label:'– §199A QBI deduction (20%)', amount:-x.qbiInfo.deduction});
+    fedSteps.push({label:'= Taxable income', amount:fed.taxable, bold:true});
+  } else {
+    fedSteps.push({label:'= Taxable income', amount:fed.taxable, bold:true});
+  }
+  // Income tax: ordinary brackets on the ordinary slice, then 0/15/20% on LT gains + qualified dividends.
   const fedExtra=[];
+  if(x.prefIncome>0){
+    fedExtra.push({label:`Preferential rate on LT gains + qualified dividends (${money(x.prefInfo.pref)}):`, amount:0});
+    if(x.prefInfo.at0>0)  fedExtra.push({label:`  • 0% on ${money(x.prefInfo.at0)}`, amount:0});
+    if(x.prefInfo.at15>0) fedExtra.push({label:`  • 15% on ${money(x.prefInfo.at15)}`, amount:x.prefInfo.at15*TAX.federal.ltcg.rate15});
+    if(x.prefInfo.at20>0) fedExtra.push({label:`  • 20% on ${money(x.prefInfo.at20)}`, amount:x.prefInfo.at20*TAX.federal.ltcg.rate20});
+    fedExtra.push({label:'= Income tax (ordinary + preferential)', amount:fed.tax, bold:true});
+  }
   if(seInfo.tax>0) fedExtra.push({label:'+ Self-employment tax', amount:seInfo.tax});
   if(addlMed>0) fedExtra.push({label:'+ 0.9% additional Medicare tax', amount:addlMed});
   if(x.niit>0) fedExtra.push({label:`+ 3.8% net investment income tax (on ${money(x.nii)})`, amount:x.niit});
   if(fedExtra.length) fedExtra.push({label:'= Total federal tax', amount:fedSH.projectedTax, bold:true});
-  $('bracket_fed').innerHTML=taxableStepsHTML(fedSteps)+bracketTableHTML(fed.taxable, fedBr, fedExtra.length?fedExtra:null);
+  $('bracket_fed').innerHTML=taxableStepsHTML(fedSteps)+bracketTableHTML(x.prefInfo.ordinary, fedBr, fedExtra.length?fedExtra:null);
   const caSteps=[{label:'Federal AGI', amount:fed.agi}];
   if(x.ssInfo.taxable>0) caSteps.push({label:'– Social Security (California does not tax it)', amount:-x.ssInfo.taxable});
   caSteps.push({label:'= California AGI', amount:ca.caAgi, bold:true});
@@ -1762,7 +1922,9 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   if(ca.mentalHealth>0) caExtra.push({label:'+ 1% mental-health surcharge (income over $1M)', amount:ca.mentalHealth});
   if(ca.exemptionCredit>0) caExtra.push({label:'– exemption credit', amount:-ca.exemptionCredit});
   caExtra.push({label:'= Final California tax', amount:ca.tax, bold:true});
-  $('bracket_ca').innerHTML=taxableStepsHTML(caSteps)+bracketTableHTML(ca.taxable, caBr, caExtra);
+  const caDiverges = x.prefIncome>0 || x.qbiInfo.deduction>0;
+  $('bracket_ca').innerHTML=taxableStepsHTML(caSteps)+bracketTableHTML(ca.taxable, caBr, caExtra)
+    + (caDiverges?`<p class="note">California taxes capital gains &amp; dividends as <strong>ordinary income</strong> (no 0/15/20% rate) and allows <strong>no QBI deduction</strong> — which is why the CA taxable income above is higher than the federal figure.</p>`:'');
 
   renderBottomLine(inp, fedSH, caSH);
   renderSchedule(inp, fedSH, caSH);
@@ -1846,11 +2008,50 @@ function renderK1Summary(inp, x){
   if(inp.k1Div) parts.push(`dividends ${money(inp.k1Div)}`);
   if(inp.k1Cap) parts.push(`capital gain ${money(inp.k1Cap)}`);
   let html=`K-1 income added to AGI: ${parts.join(' + ')}.`;
+  if(inp.k1QualDiv>0) html += ` (${money(inp.k1QualDiv)} of dividends are qualified.)`;
   if(inp.k1SeBase>0) html += `<br><strong>${money(inp.k1SeBase)}</strong> is treated as self-employment income (general-partner toggle) and added to the SE-tax base.`;
   else html += `<br>None marked subject to self-employment tax.`;
-  if(x && x.k1CapSuspended<0) html += `<br><strong>Capital loss capped at ${money(-x.k1CapForAGI)}</strong> against ordinary income (§1211); ${money(-x.k1CapSuspended)} carries forward.`;
   if(inp.k1Rental) html += `<br>K-1 rental (box 2) is treated as <strong>passive</strong> (limited-partner default): income is taxed, but a loss is suspended (it can't use the $25k active-participation allowance).`;
-  html += `<br>Interest, dividends, rental & gains count toward the 3.8% net-investment-income tax. <em>Long-term capital gains are included as ordinary here — verify, as they may be taxed lower.</em>`;
+  html += `<br>Box 9a (long-term gain) &amp; qualified dividends get federal preferential rates; everything counts toward the 3.8% net-investment-income tax. California taxes it all as ordinary.`;
+  el.innerHTML=html;
+}
+// Live summary of personal investment income.
+function renderInvSummary(inp, x){
+  const el=$('inv_summary'); if(!el) return;
+  const v=inp.inv;
+  if(!(v.interest||v.ordDiv||v.qualDiv||v.ltcg||v.stcg)){ el.className='note'; el.textContent='No investment income entered.'; return; }
+  el.className='note warn';
+  const parts=[];
+  if(v.interest) parts.push(`interest ${money(v.interest)}`);
+  if(v.ordDiv) parts.push(`dividends ${money(v.ordDiv)}${v.qualDiv?` (${money(v.qualDiv)} qualified)`:''}`);
+  if(v.ltcg) parts.push(`LT gain ${money(v.ltcg)}`);
+  if(v.stcg) parts.push(`ST gain ${money(v.stcg)}`);
+  let html=`Investment income: ${parts.join(' + ')}.`;
+  const totalPref = x.cap.preferential + v.qualDiv + inp.k1QualDiv;
+  if(totalPref>0){
+    const r=x.prefInfo;
+    html += `<br><strong>${money(x.prefIncome)}</strong> (LT gains + qualified dividends, incl. any from K-1) is taxed federally at preferential rates`;
+    const slices=[]; if(r.at0>0) slices.push(`${money(r.at0)} @ 0%`); if(r.at15>0) slices.push(`${money(r.at15)} @ 15%`); if(r.at20>0) slices.push(`${money(r.at20)} @ 20%`);
+    if(slices.length) html += `: ${slices.join(', ')}`;
+    html += `. <strong>California taxes all of it as ordinary income.</strong>`;
+  }
+  if(x.cap.suspended<0) html += `<br>Net capital loss limited to ${money(-x.cap.inAGI)} this year; ${money(-x.cap.suspended)} carries forward (§1211).`;
+  html += `<br>All of it (incl. short-term & ordinary dividends) counts toward the 3.8% net-investment-income tax.`;
+  el.innerHTML=html;
+}
+// Live summary of the QBI (§199A) deduction.
+function renderQbiSummary(inp, x){
+  const el=$('qbi_summary'); if(!el) return;
+  const q=x.qbiInfo;
+  if(x.qbiAmount<=0 || q.deduction<=0){
+    el.className='note';
+    el.textContent = x.qbiAmount<=0 ? 'No qualified business income (or deduction turned off).' : 'QBI deduction limited to $0 (income limit or SSTB phaseout).';
+    return;
+  }
+  el.className='note good';
+  let html=`Federal QBI deduction <strong>${money(q.deduction)}</strong> = lesser of 20% of QBI (${money(q.tentative)}) and the 20%-of-taxable-income cap (${money(q.incomeLimit)}). Reduces federal taxable income only — <strong>California allows $0</strong>.`;
+  if(x.isSSTB && q.aboveThreshold) html += `<br>Specified service business above the threshold: deduction phased ${Math.round((1-q.sstbFactor)*100)}% out.`;
+  else if(q.aboveThreshold) html += `<br><em>Above the 2026 threshold — the actual deduction may be limited by W-2 wages/property (not modeled), so treat this as an optimistic upper bound.</em>`;
   el.innerHTML=html;
 }
 
@@ -1930,7 +2131,9 @@ function renderSchedule(inp, fedSH, caSH){
 }
 
 function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
-  x=x||{ssInfo:{taxable:0,pctTaxed:0},niit:0,nii:0,rentalNet:0,rentAllow:{suspended:0},excessSS:0,addlMedWithheld:0,k1CapForAGI:inp.k1Cap,k1CapSuspended:0};
+  x=x||{ssInfo:{taxable:0,pctTaxed:0},niit:0,nii:0,rentalNet:0,rentAllow:{suspended:0},excessSS:0,addlMedWithheld:0,
+        cap:{inAGI:0,preferential:0,suspended:0},prefIncome:0,prefInfo:{ordinary:fed.taxable,ordTax:fed.tax,prefTax:0,at0:0,at15:0,at20:0},
+        qbiInfo:{deduction:0,tentative:0,incomeLimit:0}};
   const L=[];
   L.push('FEDERAL — projected '+TAX.year);
   L.push('────────────────────────────────────────');
@@ -1942,10 +2145,12 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
   if(inp.k1Ord) L.push('K-1 ordinary business income (box 1) '+money2(inp.k1Ord));
   if(inp.k1Gp)  L.push('K-1 guaranteed payments (box 4)      '+money2(inp.k1Gp));
   if(inp.k1Int) L.push('K-1 interest (box 5)                 '+money2(inp.k1Int));
+  if(inp.inv.interest) L.push('Taxable interest (1099-INT)          '+money2(inp.inv.interest));
   if(inp.k1Div) L.push('K-1 dividends (box 6a)               '+money2(inp.k1Div));
-  if(x.k1CapForAGI){
-    L.push('K-1 capital gain (box 9a/4a)         '+money2(x.k1CapForAGI));
-    if(x.k1CapSuspended<0) L.push('  (capital loss capped at $3,000/$1,500 MFS; '+money2(-x.k1CapSuspended)+' carries forward)');
+  if(inp.inv.ordDiv) L.push('Ordinary dividends (1099-DIV)        '+money2(inp.inv.ordDiv));
+  if(x.cap.inAGI){
+    L.push('Net capital gain (Schedule D)        '+money2(x.cap.inAGI));
+    if(x.cap.suspended<0) L.push('  (net loss capped at $3,000/$1,500 MFS; '+money2(-x.cap.suspended)+' carries forward)');
   }
   if(x.rentalNet){
     L.push('Net rental income (Schedule E)       '+money2(x.rentalNet));
@@ -1958,8 +2163,20 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
   }
   L.push('AGI (simplified)                     '+money2(fed.agi));
   L.push('Less standard deduction              -'+money2(fed.deduction));
+  if(x.qbiInfo.deduction>0){
+    L.push('Taxable income before QBI            '+money2(fed.taxableBeforeQBI));
+    L.push('Less §199A QBI deduction (20%)       -'+money2(x.qbiInfo.deduction));
+    L.push('  lesser of 20%×QBI '+money2(x.qbiInfo.tentative)+' and 20%×(TI−cap gains) '+money2(x.qbiInfo.incomeLimit));
+  }
   L.push('Taxable income                       '+money2(fed.taxable));
-  L.push('Federal income tax (brackets)        '+money2(fed.tax));
+  if(x.prefIncome>0){
+    L.push('Income tax (Qual. Div & Cap Gain Worksheet) '+money2(fed.tax));
+    L.push('  ordinary '+money2(x.prefInfo.ordinary)+' → '+money2(x.prefInfo.ordTax));
+    const sl=[]; if(x.prefInfo.at0>0) sl.push(money(x.prefInfo.at0)+' @0%'); if(x.prefInfo.at15>0) sl.push(money(x.prefInfo.at15)+' @15%'); if(x.prefInfo.at20>0) sl.push(money(x.prefInfo.at20)+' @20%');
+    L.push('  preferential '+money2(x.prefIncome)+' → '+money2(x.prefInfo.prefTax)+'  ('+sl.join(', ')+')');
+  } else {
+    L.push('Federal income tax (brackets)        '+money2(fed.tax));
+  }
   if(seInfo && seInfo.tax>0){
     L.push('Self-employment tax                  '+money2(seInfo.tax));
     L.push('  Social Security '+money2(seInfo.ssPortion)+' + Medicare '+money2(seInfo.medicarePortion));
@@ -2003,13 +2220,15 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
   return L.join('\n');
 }
 function caWorksheet(inp, ca, sh, x){
-  x=x||{ssInfo:{taxable:0}};
+  x=x||{ssInfo:{taxable:0}, prefIncome:0, qbiInfo:{deduction:0}};
   const L=[];
   L.push('CALIFORNIA — projected '+TAX.year+' (latest published schedule)');
   L.push('────────────────────────────────────────');
   if(x.ssInfo && x.ssInfo.taxable>0)
     L.push('(Social Security '+money2(x.ssInfo.taxable)+' excluded — CA does not tax it)');
-  L.push('CA AGI (wages + SE + rental + K-1)    '+money2(ca.caAgi));
+  if(x.prefIncome>0 || (x.qbiInfo&&x.qbiInfo.deduction>0))
+    L.push('(CA taxes capital gains & dividends as ordinary; NO QBI deduction)');
+  L.push('CA AGI (all income, ordinary)        '+money2(ca.caAgi));
   L.push('Less CA standard deduction           -'+money2(ca.std));
   L.push('CA taxable income                    '+money2(ca.taxable));
   L.push('CA tax (brackets)                    '+money2(ca.taxBeforeCredit));
@@ -2089,6 +2308,18 @@ function selfTest(){
   approx(mexicoRentalTax(18000,0.25),4500,0.5,'Mexico ISR 25% of gross');
   approx(excessSocialSecurityCredit(13000,TAX.federal.fica),13000-184500*0.062,0.5,'Excess SS credit');
   R.push(excessSocialSecurityCredit(10000,TAX.federal.fica)===0?'PASS no excess SS under the cap':'FAIL excess SS under cap');
+  // Schedule D netting (long-term/short-term + $3,000 loss cap)
+  approx(netCapitalGain(20000,-5000,-3000).preferential,15000,0.5,'ST loss offsets LT gain (pref)');
+  approx(netCapitalGain(10000,5000,-3000).preferential,10000,0.5,'ST gain stays ordinary, LT is pref');
+  approx(netCapitalGain(-10000,-2000,-3000).inAGI,-3000,0.5,'Net capital loss floored at -3000');
+  // Preferential LTCG/QDI rates (Qualified Dividends & Capital Gain Tax Worksheet)
+  approx(federalPreferentialTax(120000,0,TAX.federal.brackets.mfj,TAX.federal.ltcg,'mfj').tax,bracketTax(120000,TAX.federal.brackets.mfj),1,'Pref tax == ordinary when pref=0');
+  approx(federalPreferentialTax(120000,20000,TAX.federal.brackets.mfj,TAX.federal.ltcg,'mfj').tax,bracketTax(100000,TAX.federal.brackets.mfj)+3000,1,'LTCG 15% above the 0% breakpoint');
+  approx(federalPreferentialTax(90000,30000,TAX.federal.brackets.mfj,TAX.federal.ltcg,'mfj').prefTax,0,0.5,'LTCG 0% below the breakpoint');
+  // §199A QBI deduction (20% / income-limit / SSTB phaseout)
+  approx(qbiDeduction(50000,150000,10000,'single',TAX.federal.qbi,false).deduction,10000,0.5,'QBI 20% under income limit');
+  approx(qbiDeduction(50000,30000,20000,'single',TAX.federal.qbi,false).deduction,2000,0.5,'QBI capped by income limit');
+  approx(qbiDeduction(50000,300000,0,'single',TAX.federal.qbi,true).deduction,0,0.5,'SSTB QBI zero above phase-in');
 
   const pass=R.every(r=>r.startsWith('PASS'));
   $('selftestMsg').innerHTML=(pass?'<span style="color:#16a34a">All self-tests passed.</span>':'<span style="color:#dc2626">Some self-tests FAILED.</span>')
