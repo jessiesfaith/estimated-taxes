@@ -2,6 +2,22 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-22 - Full IRS+FTB progressive-rate schedule display + NOL carryforward
+- **Files:** `index.html` only.
+- **What:**
+  - **Full progressive-rate schedule:** `bracketTableHTML` rewritten to list EVERY 2026 bracket for the filing status
+    (income-not-reached brackets greyed out) for both Federal (IRS) and California (FTB), so users see the whole
+    progressive structure; long-term gains + qualified dividends show as 0/15/20% rows layered on top (federal).
+  - **NOL carryforward:** new `s_nol` input (Step 2); pure fn `nolDeduction` (80% §172 limit). Federal: reduces
+    taxable income after the std deduction, before QBI (QBI income limit then uses the post-NOL figure). California:
+    80% limit but **suspended for 2024–26 when income ≥ $1M** (SB 167/175); applied via a new optional `nol` param on
+    `californiaTax` (defaults 0 → existing results unchanged). Remaining NOL shown as carryforward. NOL is applied at the
+    taxable-income level only (does not recompute AGI-based NIIT/SS — documented simplification).
+- **Engine:** constants `federal.nol` + `ca.nol`; `nolDeduction`; `californiaTax` gained trailing `nol` arg.
+- **Verification:** 49/49 self-tests pass. Integration ties out: single $80k + $100k NOL → fed NOL $51,120 (80% of
+  $63,900), CA NOL $59,435; $1.2M income → CA NOL suspended ($0), federal NOL still allowed; full federal schedule renders
+  all 7 brackets; pure-W-2 MFJ $80k unchanged ($5,240 fed / $1,173 CA). 4-dimension adversarial review returned **0 findings**.
+
 ## 2026-06-22 - Add preferential LTCG/QDI rates + §199A QBI deduction (federal); CA keeps ordinary
 - **Files:** `index.html` only.
 - **What:** Two federal-only additions feeding the same engine, with CA divergence handled by construction:

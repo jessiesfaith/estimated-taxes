@@ -272,6 +272,10 @@
     <div class="row"><label>Last year's AGI (1040 line 11)</label><input class="num money" id="s_pyagi" value="0" /></div>
   </div>
   <p class="note">Leave last year's numbers at 0 if you don't have them yet &mdash; the tool will just use the <strong>90% of this year</strong> safe harbor. Fill them in to unlock the usually-cheaper <strong>100% / 110% of last year</strong> option.</p>
+  <div class="grid">
+    <div class="row"><label>Net operating loss (NOL) carryforward — optional</label><input class="num money opt" id="s_nol" value="0" /></div>
+  </div>
+  <p class="note">A prior-year <strong>NOL carryforward</strong> reduces this year's taxable income, but post-2017 NOLs offset at most <strong>80% of taxable income</strong> (§172) — the rest carries forward again. Applied to <strong>federal and California</strong> (they can differ; enter the controlling amount). <strong>California suspends</strong> the NOL deduction for 2024–2026 when income is <strong>$1M+</strong>.</p>
 
   <details>
     <summary class="collapse-head">Estimated payments already made this year (optional)</summary>
@@ -322,10 +326,10 @@
   <div class="card">
     <details>
       <summary id="bracketsTitle" class="collapse-head">2026 tax brackets &mdash; your marginal-rate math</summary>
-      <p class="sub" style="margin-top:8px">First we work down from your income to <strong>AGI</strong> and then <strong>taxable income</strong>; then tax is <strong>progressive</strong> &mdash; each slice of taxable income is taxed at its own 2026 rate, not your whole income at the top rate. Here's how the projected tax on the cards above is built up.</p>
-      <h3 style="margin:8px 0 4px;font-size:14px">Federal</h3>
+      <p class="sub" style="margin-top:8px">First we work down from your income to <strong>AGI</strong> and then <strong>taxable income</strong>; then tax is <strong>progressive</strong> &mdash; each slice of taxable income is taxed at its own 2026 rate, not your whole income at the top rate. The <strong>full IRS and FTB rate schedules</strong> are shown below (brackets your income doesn't reach are greyed out); long-term capital gains &amp; qualified dividends get the federal <strong>0/15/20%</strong> rates layered on top. Here's how the projected tax on the cards above is built up.</p>
+      <h3 style="margin:8px 0 4px;font-size:14px">Federal (IRS)</h3>
       <div id="bracket_fed"></div>
-      <h3 style="margin:18px 0 4px;font-size:14px">California</h3>
+      <h3 style="margin:18px 0 4px;font-size:14px">California (FTB)</h3>
       <div id="bracket_ca"></div>
     </details>
   </div>
@@ -404,7 +408,8 @@
   qualified dividends at the federal 0/15/20% rates and a simplified 20% §199A QBI deduction (federal only). Simplifications:
   QBI W-2-wage/UBIA limits above the threshold aren't modeled (above-threshold non-SSTB figures are an optimistic upper bound);
   special-rate gains (§1250 recapture 25%, collectibles 28%, QSBS) aren't covered; AMT, most credits, and itemized deductions
-  beyond the standard aren't modeled; suspended passive/capital losses are flagged but not carried between years; Mexican rental
+  beyond the standard aren't modeled; an NOL carryforward you enter is applied (80% limit; CA suspension over $1M) but
+  doesn't recompute AGI-based items; suspended passive/capital losses are flagged but not carried between years; Mexican rental
   tax is shown separately with <strong>no</strong> U.S./CA foreign-tax credit applied. Verify all figures against the IRS,
   the California FTB, a Mexican contador (for ISR/IVA), and your own return or advisor before acting.
 </p>
@@ -494,6 +499,8 @@ const TAX_BY_YEAR = {
     // the SSTB/wage phase-in to $75k single / $150k MFJ. (CA does NOT conform — federal-only.)
     qbi:{ rate:0.20, threshold:{single:201750, mfj:403500, hoh:201750, mfs:201775},
           phaseInRange:{single:75000, mfj:150000, hoh:75000, mfs:75000}, minDeduction:400, minQbiForMin:1000 },
+    // Net operating loss carryforward — post-2017 NOLs offset at most 80% of taxable income (§172(a)).
+    nol:{ limitPct:0.80 },
   },
   ca: {
     // Latest published FTB schedule (2025 tax year) used as 2026 proxy.
@@ -510,6 +517,8 @@ const TAX_BY_YEAR = {
     mentalHealthThreshold:1000000, mentalHealthRate:.01,
     safeHarborPYthreshold:150000, safeHarborPYthresholdMFS:75000,
     highIncomeNoPY:1000000, deMinimis:500,
+    // CA NOL: 80% limit, but the deduction is SUSPENDED for 2024–2026 when income ≥ $1M (SB 167/175).
+    nol:{ limitPct:0.80, suspendIncomeThreshold:1000000 },
   },
   // Self-employment (Schedule SE) — 2026. SS wage base: SSA 2026. Mileage: IRS Notice 2026-10.
   se: { ssWageBase:184500, mileageRate:0.725, netEarningsFactor:0.9235,
@@ -640,12 +649,22 @@ function qbiDeduction(qbi, taxableBeforeQBI, prefIncome, filing, cfg, isSSTB){
   if(effQbi>=cfg.minQbiForMin) deduction=Math.min(Math.max(deduction, cfg.minDeduction), incomeLimit);
   return {deduction, tentative, incomeLimit, qbi, sstbFactor, ratio, aboveThreshold:over>0};
 }
-function californiaTax(caAgi, std, brackets, exemptionCredit, mhThr, mhRate){
-  const taxable=Math.max(0,caAgi-std);
+// Net operating loss carryforward deduction. Post-2017 NOLs offset at most `limitPct` (80%) of
+// taxable income (§172(a)). California suspends the deduction for 2024–2026 when income ≥ its
+// threshold (pass suspended=true). Returns the amount used this year and the remaining carryforward.
+function nolDeduction(carryforward, taxableBeforeNOL, limitPct, suspended){
+  const cf=Math.max(0, carryforward||0);
+  if(cf<=0 || taxableBeforeNOL<=0 || suspended) return {deduction:0, used:0, remaining:cf, limit:0, suspended:!!suspended};
+  const limit=limitPct*taxableBeforeNOL;
+  const used=Math.min(cf, limit);
+  return {deduction:used, used, remaining:cf-used, limit, suspended:false};
+}
+function californiaTax(caAgi, std, brackets, exemptionCredit, mhThr, mhRate, nol){
+  const taxable=Math.max(0,caAgi-std-(nol||0));   // NOL carryforward reduces CA taxable income
   let tax=bracketTax(taxable,brackets);
   const mentalHealth = caAgi>mhThr ? (caAgi-mhThr)*mhRate : 0;
   tax+=mentalHealth;
-  return {caAgi, std, taxable, taxBeforeCredit:tax, exemptionCredit, mentalHealth,
+  return {caAgi, std, nol:nol||0, taxable, taxBeforeCredit:tax, exemptionCredit, mentalHealth,
     tax:Math.max(0, tax-(exemptionCredit||0))};
 }
 // Self-employment tax (Schedule SE). The 12.4% Social Security portion is capped
@@ -1069,7 +1088,7 @@ function clearAll(){
   $('seList').innerHTML=''; seCount=0; addSeSource();
   $('rentList').innerHTML=''; rentCount=0; addRental();
   $('k1List').innerHTML=''; k1Count=0; addK1();
-  ['s_otherincome','s_pyfed','s_pyca','s_pyagi','se_w2ss',
+  ['s_otherincome','s_pyfed','s_pyca','s_pyagi','se_w2ss','s_nol',
    'ss_benefits','ss_taxexempt','ss_fica_withheld','ss_medicare_withheld',
    'inv_interest','inv_ord_div','inv_qual_div','inv_ltcg','inv_stcg','qbi_amount',
    'est_fed_q1','est_fed_q2','est_fed_q3','est_fed_q4','est_ca_q1','est_ca_q2','est_ca_q3','est_ca_q4']
@@ -1293,6 +1312,7 @@ function buildCsv(){
     if(invTot) row('Investment income (interest/dividends/gains)', Math.round(invTot)); }
   if(lc.x && lc.x.prefIncome>0) row('  of which LT gains + qualified dividends (fed preferential)', Math.round(lc.x.prefIncome));
   if(lc.x && lc.x.qbiInfo && lc.x.qbiInfo.deduction>0) row('QBI deduction §199A (federal only)', Math.round(lc.x.qbiInfo.deduction));
+  if(lc.x && lc.x.nolFed && lc.x.nolFed.deduction>0) row('NOL carryforward used (federal)', Math.round(lc.x.nolFed.deduction));
   if(lc.x && lc.x.ssInfo && lc.x.ssInfo.taxable>0) row('Taxable Social Security (CA exempt)', Math.round(lc.x.ssInfo.taxable));
   row('');
   row('', 'Federal', 'California');
@@ -1668,6 +1688,7 @@ function gatherAll(){
     inv,
     ssBenefits:nval('ss_benefits'), ssTaxExempt:nval('ss_taxexempt'),
     ssFica:nval('ss_fica_withheld'), ssMedicare:nval('ss_medicare_withheld'),
+    nolCf:nval('s_nol'),
     periodsLeft:sources.reduce((a,s)=>a+s.periodsLeft,0),
     pyFed:nval('s_pyfed'), pyCa:nval('s_pyca'), pyAgi:nval('s_pyagi')};
 }
@@ -1729,13 +1750,16 @@ function calculate(){
 
   const fedStd=TAX.federal.std[filing]??TAX.federal.std.single;
   const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
-  const fedBase=federalTax(agi, fedStd, fedBr, 0);                  // AGI/std/taxable BEFORE QBI
-  const qbiInfo=qbiDeduction(qbiAmount, fedBase.taxable, prefIncome, filing, TAX.federal.qbi, isSSTB);
-  const fedTaxable=Math.max(0, fedBase.taxable - qbiInfo.deduction);
+  const fedBase=federalTax(agi, fedStd, fedBr, 0);                  // AGI/std/taxable, before NOL & QBI
+  // NOL carryforward (federal): offsets ≤ 80% of taxable income (§172); remainder carries forward.
+  const nolFed=nolDeduction(inp.nolCf, fedBase.taxable, TAX.federal.nol.limitPct, false);
+  const taxableBeforeQBI=Math.max(0, fedBase.taxable - nolFed.deduction);
+  const qbiInfo=qbiDeduction(qbiAmount, taxableBeforeQBI, prefIncome, filing, TAX.federal.qbi, isSSTB);
+  const fedTaxable=Math.max(0, taxableBeforeQBI - qbiInfo.deduction);
   // Income tax via the Qualified Dividends & Capital Gain Tax Worksheet (preferential stacking).
   const prefInfo=federalPreferentialTax(fedTaxable, prefIncome, fedBr, TAX.federal.ltcg, filing);
-  const fed={agi:fedBase.agi, deduction:fedBase.deduction, taxableBeforeQBI:fedBase.taxable,
-    taxable:fedTaxable, tax:prefInfo.tax};
+  const fed={agi:fedBase.agi, deduction:fedBase.deduction, taxableAfterStd:fedBase.taxable,
+    nol:nolFed, taxableBeforeQBI, taxable:fedTaxable, tax:prefInfo.tax};
   const fedProjected = fed.tax + seInfo.tax + addlMed + niit;  // income + SE + 0.9% surtax + 3.8% NIIT
   const fedSH=safeHarbor(fedProjected, inp.pyFed, inp.pyAgi, inp.fyFed + inp.estFed + excessSS + addlMedWithheld, {
     pyThreshold:TAX.federal.safeHarborPYthreshold, pyThresholdMFS:TAX.federal.safeHarborPYthresholdMFS,
@@ -1746,14 +1770,17 @@ function calculate(){
   const caAgi = modAGIexSS;
   const caStd=TAX.ca.std[filing]??TAX.ca.std.single;
   const caBr=TAX.ca.brackets[filing]??TAX.ca.brackets.single;
+  // CA NOL: 80% limit, but suspended for 2024–2026 when income ≥ $1M (SB 167/175).
+  const caNolSuspended = caAgi >= TAX.ca.nol.suspendIncomeThreshold;
+  const nolCa=nolDeduction(inp.nolCf, Math.max(0, caAgi-caStd), TAX.ca.nol.limitPct, caNolSuspended);
   const ca=californiaTax(caAgi, caStd, caBr, nval('a_ca_exempt'),
-    TAX.ca.mentalHealthThreshold, TAX.ca.mentalHealthRate);
+    TAX.ca.mentalHealthThreshold, TAX.ca.mentalHealthRate, nolCa.deduction);
   const caSH=safeHarbor(ca.tax, inp.pyCa, inp.pyAgi, inp.fyCa + inp.estCa, {
     pyThreshold:TAX.ca.safeHarborPYthreshold, pyThresholdMFS:TAX.ca.safeHarborPYthresholdMFS,
     deMinimis:TAX.ca.deMinimis, highIncomeNoPY:TAX.ca.highIncomeNoPY, isMFS});
 
   const x={niit, nii, ssInfo, rentAllow, rentalNet, excessSS, addlMedWithheld, mxTax:inp.mxTax,
-    cap, prefIncome, prefInfo, qbiInfo, qbiAmount, isSSTB};
+    cap, prefIncome, prefInfo, qbiInfo, qbiAmount, isSSTB, nolFed, nolCa};
   lastCalc = {inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x};
   render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x);
   clearDirty();
@@ -1762,16 +1789,23 @@ function calculate(){
 /* =====================================================================
    RENDER
    ===================================================================== */
-// Build a bracket-by-bracket table. extraRows = reconciling lines (CA credit etc.).
+// Build the FULL progressive-rate schedule so the math is visible: every bracket is listed, with
+// how much of THIS taxpayer's income falls in it and the tax. Brackets the income doesn't reach are
+// dimmed (—). extraRows = reconciling lines (preferential-rate slices, CA credit, surtaxes, etc.).
 function bracketTableHTML(taxable, brackets, extraRows){
-  const rows=bracketBreakdown(taxable, brackets);
-  let total=0;
+  let lower=0, total=0;
   let html=`<table><thead><tr><th>Marginal rate &amp; income slice</th><th>Income taxed here</th><th>Tax</th></tr></thead><tbody>`;
-  for(const r of rows){
-    total+=r.tax;
-    const pct=+(r.rate*100).toFixed(2);
-    const range=`${money(r.lower)} – ${r.top===Infinity?'and up':money(r.top)}`;
-    html+=`<tr><td><strong>${pct}%</strong> on ${range}</td><td class="num">${money(r.amount)}</td><td class="num">${money(r.tax)}</td></tr>`;
+  for(const b of brackets){
+    const top=b.upTo;
+    const amount=Math.max(0, Math.min(taxable, top) - lower);
+    const tax=amount*b.rate;
+    total+=tax;
+    const pct=+(b.rate*100).toFixed(2);
+    const range=`${money(lower)} – ${top===Infinity?'and up':money(top)}`;
+    const reached=amount>0;
+    html+=`<tr${reached?'':' style="color:#94a3b8"'}><td><strong>${pct}%</strong> on ${range}</td><td class="num">${reached?money(amount):'—'}</td><td class="num">${reached?money(tax):'—'}</td></tr>`;
+    lower=top;
+    if(top===Infinity) break;
   }
   html+=`<tr style="font-weight:700;border-top:2px solid #0f172a"><td>Tax on ${money(taxable)} taxable income</td><td></td><td class="num">${money(total)}</td></tr>`;
   if(extraRows) for(const er of extraRows)
@@ -1892,6 +1926,10 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   if(x.ssInfo.taxable>0) fedSteps.push({label:`+ Taxable Social Security (${Math.round(x.ssInfo.pctTaxed*100)}% of ${money(inp.ssBenefits)})`, amount:x.ssInfo.taxable});
   fedSteps.push({label:'= Adjusted gross income (AGI)', amount:fed.agi, bold:true});
   fedSteps.push({label:'– Standard deduction', amount:-fed.deduction});
+  if(x.nolFed.deduction>0){
+    fedSteps.push({label:'– NOL carryforward (80% limit)', amount:-x.nolFed.deduction});
+    if(x.nolFed.remaining>0) fedSteps.push({label:`   (${money(x.nolFed.remaining)} NOL carries forward)`, amount:0});
+  }
   if(x.qbiInfo.deduction>0){
     fedSteps.push({label:'= Taxable income before QBI', amount:fed.taxableBeforeQBI, bold:true});
     fedSteps.push({label:'– §199A QBI deduction (20%)', amount:-x.qbiInfo.deduction});
@@ -1917,6 +1955,8 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   if(x.ssInfo.taxable>0) caSteps.push({label:'– Social Security (California does not tax it)', amount:-x.ssInfo.taxable});
   caSteps.push({label:'= California AGI', amount:ca.caAgi, bold:true});
   caSteps.push({label:'– CA standard deduction', amount:-ca.std});
+  if(x.nolCa.deduction>0) caSteps.push({label:'– NOL carryforward (CA, 80% limit)', amount:-x.nolCa.deduction});
+  else if(x.nolCa.suspended && inp.nolCf>0) caSteps.push({label:'NOL suspended — CA income ≥ $1M (2024–26)', amount:0});
   caSteps.push({label:'= CA taxable income', amount:ca.taxable, bold:true});
   const caExtra=[];
   if(ca.mentalHealth>0) caExtra.push({label:'+ 1% mental-health surcharge (income over $1M)', amount:ca.mentalHealth});
@@ -2133,7 +2173,7 @@ function renderSchedule(inp, fedSH, caSH){
 function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
   x=x||{ssInfo:{taxable:0,pctTaxed:0},niit:0,nii:0,rentalNet:0,rentAllow:{suspended:0},excessSS:0,addlMedWithheld:0,
         cap:{inAGI:0,preferential:0,suspended:0},prefIncome:0,prefInfo:{ordinary:fed.taxable,ordTax:fed.tax,prefTax:0,at0:0,at15:0,at20:0},
-        qbiInfo:{deduction:0,tentative:0,incomeLimit:0}};
+        qbiInfo:{deduction:0,tentative:0,incomeLimit:0},nolFed:{deduction:0,remaining:0}};
   const L=[];
   L.push('FEDERAL — projected '+TAX.year);
   L.push('────────────────────────────────────────');
@@ -2163,6 +2203,10 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
   }
   L.push('AGI (simplified)                     '+money2(fed.agi));
   L.push('Less standard deduction              -'+money2(fed.deduction));
+  if(x.nolFed && x.nolFed.deduction>0){
+    L.push('Less NOL carryforward (80% limit)    -'+money2(x.nolFed.deduction));
+    if(x.nolFed.remaining>0) L.push('  ('+money2(x.nolFed.remaining)+' NOL carries forward)');
+  }
   if(x.qbiInfo.deduction>0){
     L.push('Taxable income before QBI            '+money2(fed.taxableBeforeQBI));
     L.push('Less §199A QBI deduction (20%)       -'+money2(x.qbiInfo.deduction));
@@ -2220,7 +2264,7 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
   return L.join('\n');
 }
 function caWorksheet(inp, ca, sh, x){
-  x=x||{ssInfo:{taxable:0}, prefIncome:0, qbiInfo:{deduction:0}};
+  x=x||{ssInfo:{taxable:0}, prefIncome:0, qbiInfo:{deduction:0}, nolCa:{deduction:0,suspended:false}};
   const L=[];
   L.push('CALIFORNIA — projected '+TAX.year+' (latest published schedule)');
   L.push('────────────────────────────────────────');
@@ -2230,6 +2274,8 @@ function caWorksheet(inp, ca, sh, x){
     L.push('(CA taxes capital gains & dividends as ordinary; NO QBI deduction)');
   L.push('CA AGI (all income, ordinary)        '+money2(ca.caAgi));
   L.push('Less CA standard deduction           -'+money2(ca.std));
+  if(x.nolCa && x.nolCa.deduction>0) L.push('Less NOL carryforward (CA, 80% limit) -'+money2(x.nolCa.deduction));
+  else if(x.nolCa && x.nolCa.suspended && inp.nolCf>0) L.push('NOL suspended (CA income ≥ $1M, 2024–26)');
   L.push('CA taxable income                    '+money2(ca.taxable));
   L.push('CA tax (brackets)                    '+money2(ca.taxBeforeCredit));
   if(ca.mentalHealth>0) L.push('  incl. 1% mental-health surcharge   '+money2(ca.mentalHealth));
@@ -2320,6 +2366,11 @@ function selfTest(){
   approx(qbiDeduction(50000,150000,10000,'single',TAX.federal.qbi,false).deduction,10000,0.5,'QBI 20% under income limit');
   approx(qbiDeduction(50000,30000,20000,'single',TAX.federal.qbi,false).deduction,2000,0.5,'QBI capped by income limit');
   approx(qbiDeduction(50000,300000,0,'single',TAX.federal.qbi,true).deduction,0,0.5,'SSTB QBI zero above phase-in');
+  // NOL carryforward (80% limit + CA suspension)
+  approx(nolDeduction(100000,50000,0.80,false).deduction,40000,0.5,'NOL limited to 80% of taxable');
+  approx(nolDeduction(100000,50000,0.80,false).remaining,60000,0.5,'NOL remainder carries forward');
+  approx(nolDeduction(10000,50000,0.80,false).deduction,10000,0.5,'NOL fully used when under 80% cap');
+  R.push(nolDeduction(100000,50000,0.80,true).deduction===0?'PASS NOL suspended → 0':'FAIL NOL suspension');
 
   const pass=R.every(r=>r.startsWith('PASS'));
   $('selftestMsg').innerHTML=(pass?'<span style="color:#16a34a">All self-tests passed.</span>':'<span style="color:#dc2626">Some self-tests FAILED.</span>')
