@@ -408,8 +408,9 @@
   qualified dividends at the federal 0/15/20% rates and a simplified 20% §199A QBI deduction (federal only). Simplifications:
   QBI W-2-wage/UBIA limits above the threshold aren't modeled (above-threshold non-SSTB figures are an optimistic upper bound);
   special-rate gains (§1250 recapture 25%, collectibles 28%, QSBS) aren't covered; AMT, most credits, and itemized deductions
-  beyond the standard aren't modeled; an NOL carryforward you enter is applied (80% limit; CA suspension over $1M) but
-  doesn't recompute AGI-based items; suspended passive/capital losses are flagged but not carried between years; Mexican rental
+  beyond the standard aren't modeled; an NOL carryforward you enter is applied (80% limit; CA suspension over $1M) and the
+  federal NOL also lowers AGI-based items (Social Security taxability, NIIT); suspended passive/capital losses are flagged but
+  not carried between years; Mexican rental
   tax is shown separately with <strong>no</strong> U.S./CA foreign-tax credit applied. Verify all figures against the IRS,
   the California FTB, a Mexican contador (for ISR/IVA), and your own return or advisor before acting.
 </p>
@@ -1720,16 +1721,28 @@ function calculate(){
   const rentAllow = {allowed:rentalNet, suspended:seRentAllow.suspended + k1RentAllow.suspended,
     allowance:seRentAllow.allowance};
 
-  // Social Security: taxable portion from the provisional-income worksheet (federal only).
-  const modAGIexSS = incomeExRental + rentalNet;             // AGI before Social Security
-  const provisional = modAGIexSS + inp.ssTaxExempt + 0.5*inp.ssBenefits;
-  const ssInfo = taxableSocialSecurity(inp.ssBenefits, provisional, filing, TAX.federal.ssTaxation);
+  const fedStd=TAX.federal.std[filing]??TAX.federal.std.single;
+  const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
+  const modAGIexSS = incomeExRental + rentalNet;             // non-SS income (before SS, before NOL)
 
-  const agi = modAGIexSS + ssInfo.taxable;                   // federal AGI (includes taxable SS; before QBI)
+  // Federal NOL carryforward (§172): the 80% limit is figured on taxable income WITHOUT the NOL — so we
+  // first compute Social Security at the pre-NOL provisional income to get that base, cap the NOL at 80%,
+  // then APPLY the NOL to non-SS income so it flows into Social Security taxability AND the NIIT MAGI
+  // (the NOL is a Schedule-1 adjustment that reduces AGI). The §1411 "applicable portion" nuance and the
+  // feedback on the NOL itself aren't modeled — a documented simplification.
+  const provisionalNoNOL = modAGIexSS + inp.ssTaxExempt + 0.5*inp.ssBenefits;
+  const ssNoNOL = taxableSocialSecurity(inp.ssBenefits, provisionalNoNOL, filing, TAX.federal.ssTaxation);
+  const taxableForNolLimit = Math.max(0, (modAGIexSS + ssNoNOL.taxable) - fedStd);
+  const nolFed = nolDeduction(inp.nolCf, taxableForNolLimit, TAX.federal.nol.limitPct, false);
+
+  const modAGIexSSafterNOL = modAGIexSS - nolFed.deduction;  // NOL reduces AGI (cascades to SS + NIIT)
+  const provisional = modAGIexSSafterNOL + inp.ssTaxExempt + 0.5*inp.ssBenefits;
+  const ssInfo = taxableSocialSecurity(inp.ssBenefits, provisional, filing, TAX.federal.ssTaxation);
+  const agi = modAGIexSSafterNOL + ssInfo.taxable;          // federal AGI AFTER NOL (feeds NIIT MAGI)
   const addlMed = additionalMedicareTax(inp.fyWagesOnly, seInfo.seBase, filing, TAX.federal.addlMedicare);
 
   // 3.8% NIIT on GROSS investment income (rental + interest + all dividends + net gains) — federal only.
-  // Uses gross amounts independent of the preferential-rate split and of QBI.
+  // NII is gross; the NOL reduces only the MAGI side (agi), so a big NOL can lower or zero the NIIT.
   const nii = Math.max(0, rentalNet) + inp.k1Int + inp.k1Div + inp.inv.interest + inp.inv.ordDiv + Math.max(0, cap.inAGI);
   const niit = netInvestmentIncomeTax(nii, agi, filing, TAX.federal.niit);
 
@@ -1748,12 +1761,8 @@ function calculate(){
   const qbiAmount = !qbiEnabled ? 0 : (qbiOverride>0 ? qbiOverride : Math.max(0, (inp.seNetProfit - seInfo.halfDeduction) + inp.k1Ord));
   const isSSTB = $('qbi_sstb') ? $('qbi_sstb').checked : false;
 
-  const fedStd=TAX.federal.std[filing]??TAX.federal.std.single;
-  const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
-  const fedBase=federalTax(agi, fedStd, fedBr, 0);                  // AGI/std/taxable, before NOL & QBI
-  // NOL carryforward (federal): offsets ≤ 80% of taxable income (§172); remainder carries forward.
-  const nolFed=nolDeduction(inp.nolCf, fedBase.taxable, TAX.federal.nol.limitPct, false);
-  const taxableBeforeQBI=Math.max(0, fedBase.taxable - nolFed.deduction);
+  const fedBase=federalTax(agi, fedStd, fedBr, 0);                 // taxable = AGI − std (already reflects NOL)
+  const taxableBeforeQBI=fedBase.taxable;
   const qbiInfo=qbiDeduction(qbiAmount, taxableBeforeQBI, prefIncome, filing, TAX.federal.qbi, isSSTB);
   const fedTaxable=Math.max(0, taxableBeforeQBI - qbiInfo.deduction);
   // Income tax via the Qualified Dividends & Capital Gain Tax Worksheet (preferential stacking).
@@ -1923,13 +1932,13 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   if(x.cap.suspended<0) fedSteps.push({label:`   (${money(-x.cap.suspended)} capital loss carries forward)`, amount:0});
   if(x.rentalNet!==0) fedSteps.push({label:'+ Net rental income (Schedule E, US + Mexico)', amount:x.rentalNet});
   if(seInfo.halfDeduction>0) fedSteps.push({label:'– ½ self-employment tax (deductible)', amount:-seInfo.halfDeduction});
+  if(x.nolFed.deduction>0){
+    fedSteps.push({label:'– NOL carryforward (80% limit)', amount:-x.nolFed.deduction});
+    if(x.nolFed.remaining>0) fedSteps.push({label:`   (${money(x.nolFed.remaining)} NOL carries forward; also lowers taxable SS & NIIT)`, amount:0});
+  }
   if(x.ssInfo.taxable>0) fedSteps.push({label:`+ Taxable Social Security (${Math.round(x.ssInfo.pctTaxed*100)}% of ${money(inp.ssBenefits)})`, amount:x.ssInfo.taxable});
   fedSteps.push({label:'= Adjusted gross income (AGI)', amount:fed.agi, bold:true});
   fedSteps.push({label:'– Standard deduction', amount:-fed.deduction});
-  if(x.nolFed.deduction>0){
-    fedSteps.push({label:'– NOL carryforward (80% limit)', amount:-x.nolFed.deduction});
-    if(x.nolFed.remaining>0) fedSteps.push({label:`   (${money(x.nolFed.remaining)} NOL carries forward)`, amount:0});
-  }
   if(x.qbiInfo.deduction>0){
     fedSteps.push({label:'= Taxable income before QBI', amount:fed.taxableBeforeQBI, bold:true});
     fedSteps.push({label:'– §199A QBI deduction (20%)', amount:-x.qbiInfo.deduction});
@@ -1953,6 +1962,7 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   $('bracket_fed').innerHTML=taxableStepsHTML(fedSteps)+bracketTableHTML(x.prefInfo.ordinary, fedBr, fedExtra.length?fedExtra:null);
   const caSteps=[{label:'Federal AGI', amount:fed.agi}];
   if(x.ssInfo.taxable>0) caSteps.push({label:'– Social Security (California does not tax it)', amount:-x.ssInfo.taxable});
+  if(x.nolFed.deduction>0) caSteps.push({label:'+ Federal NOL added back (California figures its own NOL)', amount:x.nolFed.deduction});
   caSteps.push({label:'= California AGI', amount:ca.caAgi, bold:true});
   caSteps.push({label:'– CA standard deduction', amount:-ca.std});
   if(x.nolCa.deduction>0) caSteps.push({label:'– NOL carryforward (CA, 80% limit)', amount:-x.nolCa.deduction});
@@ -2197,16 +2207,16 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
     if(x.rentAllow && x.rentAllow.suspended>0) L.push('  ('+money2(x.rentAllow.suspended)+' loss suspended → carryforward)');
   }
   if(seInfo && seInfo.halfDeduction>0) L.push('Less 1/2 self-employment tax         -'+money2(seInfo.halfDeduction));
+  if(x.nolFed && x.nolFed.deduction>0){
+    L.push('Less NOL carryforward (80% limit)    -'+money2(x.nolFed.deduction));
+    if(x.nolFed.remaining>0) L.push('  ('+money2(x.nolFed.remaining)+' carries forward; also lowers taxable SS & NIIT MAGI)');
+  }
   if(x.ssInfo && x.ssInfo.taxable>0){
     L.push('Taxable Social Security               '+money2(x.ssInfo.taxable));
     L.push('  '+Math.round(x.ssInfo.pctTaxed*100)+'% of '+money2(inp.ssBenefits)+' (provisional income '+money2(x.ssInfo.provisional)+')');
   }
   L.push('AGI (simplified)                     '+money2(fed.agi));
   L.push('Less standard deduction              -'+money2(fed.deduction));
-  if(x.nolFed && x.nolFed.deduction>0){
-    L.push('Less NOL carryforward (80% limit)    -'+money2(x.nolFed.deduction));
-    if(x.nolFed.remaining>0) L.push('  ('+money2(x.nolFed.remaining)+' NOL carries forward)');
-  }
   if(x.qbiInfo.deduction>0){
     L.push('Taxable income before QBI            '+money2(fed.taxableBeforeQBI));
     L.push('Less §199A QBI deduction (20%)       -'+money2(x.qbiInfo.deduction));

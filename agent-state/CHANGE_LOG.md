@@ -2,6 +2,21 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-22 - NOL cascades into AGI-based items (Social Security taxability + NIIT)
+- **Files:** `index.html` only.
+- **What:** The FEDERAL NOL carryforward now reduces AGI (a Schedule-1 adjustment), so it flows into Social
+  Security taxability (lower provisional income) and the 3.8% NIIT MAGI — previously it only reduced taxable
+  income at the bracket step. Implementation in calculate(): compute SS at the PRE-NOL provisional only to set
+  the §172 80%-limit base, cap the NOL, then subtract it from non-SS income, RE-derive SS at the lower provisional,
+  and set agi = (income − NOL) + taxable SS. NII stays gross (NOL reduces only the MAGI side). California unchanged
+  (CA NOL still separate; CA excludes SS; no NIIT).
+- **Verification:** 49/49 self-tests pass. Cascade confirmed: $250k rental + $30k SS + $100k NOL → NIIT $2,869→$0
+  (MAGI drops below $200k); $50k rental + $30k SS + $40k NOL → taxable SS $25,500→$0 (provisional $65k→$25k).
+  Pure-W-2 / no-NOL byte-identical. 4-dimension adversarial review: math/limit-base/cascade clean; caught + FIXED one
+  DISPLAY reconciliation bug — the CA build-up ("Federal AGI − SS = California AGI") didn't tie once fed AGI went
+  post-NOL, so added a "+ Federal NOL added back (CA figures its own NOL)" bridge line; CA column now reconciles.
+- **Simplification (disclaimer):** full NOL reduces MAGI (the §1411 "applicable portion" nuance not modeled).
+
 ## 2026-06-22 - Full IRS+FTB progressive-rate schedule display + NOL carryforward
 - **Files:** `index.html` only.
 - **What:**
