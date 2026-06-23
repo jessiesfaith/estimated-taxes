@@ -125,7 +125,7 @@
 <header>
   <div class="hdr-text">
     <h1>W-2 Estimated Tax &amp; Safe-Harbor Tool</h1>
-    <p><strong>Tax year <span id="hdrYear">2026</span></strong> &middot; Read your paystubs / W-2s &rarr; project the year &rarr; refund or shortfall, the 90/100/110% targets, per-paycheck adjustment, and payment due dates. Federal + California. Estimate only.</p>
+    <p><strong>Tax year <span id="hdrYear">2026</span></strong> &middot; Wages/W-2s, 1099 self-employment, Social Security, rental (incl. Mexico) &amp; K-1s &rarr; project the year &rarr; refund or shortfall, the 90/100/110% targets, per-paycheck adjustment, and payment due dates. Federal + California. Estimate only.</p>
   </div>
   <div class="hdr-actions">
     <button class="btn outline" id="demoBtn">Demo</button>
@@ -162,6 +162,51 @@
   </div>
   <p class="note">Net profit = gross + tips &minus; expenses &minus; mileage (miles &times; the 2026 standard rate), summed across payers. SE tax = 15.3% on 92.35% of net profit (12.4% Social Security up to the wage base + 2.9% Medicare); half is deducted from income. The W-2 field only matters if the <em>same person</em> with the 1099 also has a W-2 &mdash; it lowers the Social Security portion. California has no separate SE tax, but the net profit is still CA taxable income.</p>
   <div id="se_summary" class="note"></div>
+  </details>
+</section>
+
+<!-- ====================== SOCIAL SECURITY ====================== -->
+<section class="card">
+  <details id="ss_details">
+  <summary class="collapse-head">Social Security benefits &amp; FICA</summary>
+  <p class="sub" style="margin-top:8px">Optional &mdash; leave at 0 if none. Enter Social Security <strong>benefits you receive</strong> (retirement, SSDI, or survivor &mdash; box 5 of the SSA-1099). Up to <strong>85% is taxable federally</strong> depending on your other income; <strong>California does not tax Social Security at all</strong>, so the tool removes it from your CA income automatically.</p>
+  <div class="grid">
+    <div class="row"><label>Annual Social Security benefits received (SSA-1099 box 5)</label><input class="num money opt" id="ss_benefits" value="0"></div>
+    <div class="row"><label>Tax-exempt interest (muni bonds, optional)</label><input class="num money opt" id="ss_taxexempt" value="0"></div>
+  </div>
+  <p class="note">How much of your benefit is taxed depends on your <strong>provisional income</strong> = your other income + tax-exempt interest + half your benefits. Below $32,000 (married joint) / $25,000 (single) none is taxed; above $44,000 / $34,000 up to 85% is. We compute the exact taxable slice from all the other income you entered.</p>
+
+  <details style="margin-top:10px">
+    <summary class="collapse-head">FICA already withheld from wages (Social Security &amp; Medicare)</summary>
+    <p class="sub" style="margin-top:8px">From your paystub/W-2 (boxes 4 &amp; 6). This is a <em>separate</em> tax from income tax &mdash; it does <strong>not</strong> reduce the income tax estimated below. We track it to flag <strong>excess Social Security tax</strong>: if two or more employers each withheld up to the annual cap, the overage is a refundable credit on your federal return.</p>
+    <div class="grid">
+      <div class="row"><label>Social Security (FICA) tax withheld &mdash; box 4</label><input class="num money opt" id="ss_fica_withheld" value="0"></div>
+      <div class="row"><label>Medicare tax withheld &mdash; box 6</label><input class="num money opt" id="ss_medicare_withheld" value="0"></div>
+    </div>
+  </details>
+  <div id="ss_summary" class="note"></div>
+  </details>
+</section>
+
+<!-- ====================== PASSIVE RENTAL INCOME (Schedule E) ====================== -->
+<section class="card">
+  <details id="rent_details">
+  <summary class="collapse-head">Passive rental income (Schedule E)</summary>
+  <p class="sub" style="margin-top:8px">Optional. One card per property. <strong>Net rental income = rents &minus; operating expenses &minus; depreciation.</strong> Rental income is <strong>not</strong> subject to self-employment tax, but it <em>is</em> ordinary income for federal &amp; California, and (with other investment income) may trigger the <strong>3.8% Net Investment Income Tax</strong>. A net <strong>loss</strong> is generally passive: up to $25,000 can offset other income if you <em>actively participate</em> (phasing out between $100k&ndash;$150k of income); the rest is suspended and carries forward. Mark a property as <strong>Mexico</strong> to also estimate Mexican rental tax.</p>
+  <div id="rentList"></div>
+  <button class="btn secondary" id="addRentBtn">+ Add a rental property</button>
+  <div id="rent_summary" class="note"></div>
+  </details>
+</section>
+
+<!-- ====================== SCHEDULE K-1 ====================== -->
+<section class="card">
+  <details id="k1_details">
+  <summary class="collapse-head">Schedule K-1 income (partnership / S-corp / trust)</summary>
+  <p class="sub" style="margin-top:8px">Optional. One card per K-1. Enter the boxes that have amounts. <strong>Ordinary business income</strong> and <strong>guaranteed payments</strong> add to your income; tick <em>"subject to SE tax"</em> only if you're a <strong>general partner</strong> materially participating (limited partners and S-corp shareholders are usually not). <strong>Interest, dividends, and rental</strong> from the K-1 add to income and count toward the 3.8% investment-income tax. Capital gains are included as ordinary here &mdash; long-term gains may actually be taxed at lower rates, so treat that line as conservative.</p>
+  <div id="k1List"></div>
+  <button class="btn secondary" id="addK1Btn">+ Add a K-1</button>
+  <div id="k1_summary" class="note"></div>
   </details>
 </section>
 
@@ -237,6 +282,8 @@
     <div class="rc" id="card_federal"></div>
     <div class="rc" id="card_ca"></div>
   </div>
+
+  <div id="mexicoBlock"></div>
 
   <div class="card">
     <details>
@@ -319,9 +366,11 @@
 </section>
 
 <p class="disclaimer">
-  This tool produces an <strong>estimate only</strong> and is not tax or legal advice. It does not handle every situation
-  (credits, AMT, capital gains, multiple states, itemized deductions beyond the standard, etc.).
-  Verify all figures against the IRS, the California FTB, and your own tax return or advisor before acting.
+  This tool produces an <strong>estimate only</strong> and is not tax or legal advice. Simplifications: capital gains are
+  treated as ordinary income (long-term gains may be taxed lower); QBI/§199A, AMT, most credits, and itemized deductions
+  beyond the standard are not modeled; suspended passive losses are flagged but not carried between years; Mexican rental
+  tax is shown separately with <strong>no</strong> U.S./CA foreign-tax credit applied. Verify all figures against the IRS,
+  the California FTB, a Mexican contador (for ISR/IVA), and your own return or advisor before acting.
 </p>
 
 </main>
@@ -384,7 +433,21 @@ const TAX_BY_YEAR = {
     std:{single:16100,mfj:32200,hoh:24150,mfs:16100},
     safeHarborPYthreshold:150000, safeHarborPYthresholdMFS:75000, deMinimis:1000,
     // 0.9% Additional Medicare tax (statutory, not indexed) on wages + SE income over threshold.
-    addlMedicare:{rate:0.009, thresholds:{single:200000, mfj:250000, mfs:125000, hoh:200000}},
+    // employerWithholdFloor: employers must withhold the 0.9% on EACH job's wages over $200k (flat,
+    // any filing status) — that withholding is a credit (Form 8959 Part IV → 1040 line 25c).
+    addlMedicare:{rate:0.009, thresholds:{single:200000, mfj:250000, mfs:125000, hoh:200000}, employerWithholdFloor:200000},
+    // 3.8% Net Investment Income Tax (Form 8960). Thresholds statutory, not indexed.
+    niit:{rate:0.038, thresholds:{single:200000, mfj:250000, mfs:125000, hoh:200000}},
+    // Taxation of Social Security benefits (IRS Pub 915 / 1040 worksheet). Base amounts are
+    // statutory and NOT inflation-indexed. MFS-living-with-spouse uses 0 (up to 85% taxable).
+    ssTaxation:{
+      base1:{single:25000, mfj:32000, hoh:25000, mfs:0},   // 50% tier begins
+      base2:{single:34000, mfj:44000, hoh:34000, mfs:0},   // 85% tier begins
+      tier1Pct:0.50, maxPct:0.85,
+    },
+    // FICA Social Security wage base & rate — only used to flag excess SS tax withheld
+    // when two or more employers each withheld up to the cap (refundable credit, Sch 3).
+    fica:{ ssRate:0.062, ssWageBase:184500 },
   },
   ca: {
     // Latest published FTB schedule (2025 tax year) used as 2026 proxy.
@@ -404,7 +467,17 @@ const TAX_BY_YEAR = {
   },
   // Self-employment (Schedule SE) — 2026. SS wage base: SSA 2026. Mileage: IRS Notice 2026-10.
   se: { ssWageBase:184500, mileageRate:0.725, netEarningsFactor:0.9235,
-        ssRate:0.124, medicareRate:0.029, minNetForSE:400 }
+        ssRate:0.124, medicareRate:0.029, minNetForSE:400 },
+  // Passive rental real estate (Schedule E). The $25k special allowance lets ACTIVE
+  // participants deduct up to $25k of rental loss against other income; it phases out
+  // $1 per $2 of MAGI between the start and end below, and is halved for MFS (living apart).
+  rental: { specialAllowance:25000, phaseoutStart:100000, phaseoutEnd:150000,
+            specialAllowanceMFS:12500, phaseoutStartMFS:50000, phaseoutEndMFS:75000 },
+  // Mexico rental property — nonresident income tax (ISR). The simplified nonresident
+  // method is a flat rate on GROSS rent with no deductions (IVA on commercial rent is
+  // separate and not modeled). Editable in the Mexico section. Resident/RFC filers may
+  // instead pay progressive ISR on net rent — choose "I'll enter the amount" for that.
+  mexico: { rentalGrossRate:0.25, mxnPerUsd:18 }
   }),
 };
 const AVAILABLE_YEARS = Object.keys(TAX_BY_YEAR).map(Number).sort((a,b)=>a-b);
@@ -497,6 +570,63 @@ function selfEmploymentTax(netProfit, w2SocialSecurityWages, se){
 function additionalMedicareTax(medicareWages, seBase, filing, cfg){
   const thr = cfg.thresholds[filing] ?? cfg.thresholds.single;
   return cfg.rate * Math.max(0, (medicareWages||0) + (seBase||0) - thr);
+}
+
+// Taxable portion of Social Security benefits (IRS Pub 915 / 1040 worksheet).
+//   provisional = (AGI excluding SS) + tax-exempt interest + 50% of benefits
+//   0 below base1; up to 50% between base1 and base2; up to 85% above base2.
+// CA does NOT tax SS — the taxable amount returned here is removed from CA income later.
+function taxableSocialSecurity(benefits, provisional, filing, cfg){
+  if(benefits<=0) return {benefits:0, provisional, taxable:0, pctTaxed:0};
+  const b1 = cfg.base1[filing] ?? cfg.base1.single;
+  const b2 = cfg.base2[filing] ?? cfg.base2.single;
+  const half = benefits*cfg.tier1Pct;                 // 50% of benefits
+  let taxable;
+  if(provisional<=b1) taxable=0;
+  else if(provisional<=b2) taxable=Math.min(half, cfg.tier1Pct*(provisional-b1));
+  else {
+    const tier1 = Math.min(half, cfg.tier1Pct*(b2-b1));   // 50% of the band between bases
+    taxable = Math.min(cfg.maxPct*benefits, cfg.maxPct*(provisional-b2) + tier1);
+  }
+  taxable = Math.min(taxable, cfg.maxPct*benefits);
+  return {benefits, provisional, base1:b1, base2:b2, taxable, pctTaxed: taxable/benefits};
+}
+
+// $25k special allowance for rental losses (active participation). Returns the rental
+// amount actually allowed against other income this year. Positive net passes through;
+// a loss is limited by the MAGI-phased allowance, the remainder is suspended (carried
+// forward — this single-year tool reports it but cannot track it across years).
+function rentalAllowedNet(netRental, magi, activeParticipation, filing, cfg){
+  if(netRental>=0) return {allowed:netRental, suspended:0, allowance:0};
+  const loss = -netRental;
+  if(!activeParticipation) return {allowed:0, suspended:loss, allowance:0};
+  const isMFS = filing==='mfs';
+  const maxAllow = isMFS ? cfg.specialAllowanceMFS : cfg.specialAllowance;
+  const pStart  = isMFS ? cfg.phaseoutStartMFS : cfg.phaseoutStart;
+  const pEnd    = isMFS ? cfg.phaseoutEndMFS : cfg.phaseoutEnd;
+  let allowance = maxAllow;
+  if(magi>pStart) allowance = Math.max(0, maxAllow - 0.5*(magi-pStart));
+  if(magi>=pEnd) allowance = 0;
+  const used = Math.min(loss, allowance);
+  return {allowed:-used, suspended:loss-used, allowance};
+}
+
+// 3.8% Net Investment Income Tax (Form 8960): on the smaller of net investment income
+// or the amount of MAGI over the threshold. Not deductible. CA has no equivalent.
+function netInvestmentIncomeTax(nii, magi, filing, cfg){
+  const thr = cfg.thresholds[filing] ?? cfg.thresholds.single;
+  const base = Math.min(Math.max(0,nii), Math.max(0, magi-thr));
+  return cfg.rate*base;
+}
+
+// Mexico nonresident rental income tax (ISR) — flat rate on GROSS rent, no deductions.
+function mexicoRentalTax(grossRent, rate){ return Math.max(0, grossRent)*rate; }
+
+// Excess Social Security tax withheld when 2+ employers each withheld up to the cap.
+// The overage above one year's max is a refundable credit on the federal return.
+function excessSocialSecurityCredit(ssWithheld, cfg){
+  const max = cfg.ssWageBase*cfg.ssRate;
+  return Math.max(0, (ssWithheld||0) - max);
 }
 
 // Safe-harbor analysis for one jurisdiction. Returns options, controlling target,
@@ -840,7 +970,10 @@ let demoLoaded=false;   // is the demo dataset currently loaded? (drives the Dem
 function clearAll(){
   $('sourcesList').innerHTML=''; sourceCount=0; addSource();
   $('seList').innerHTML=''; seCount=0; addSeSource();
+  $('rentList').innerHTML=''; rentCount=0; addRental();
+  $('k1List').innerHTML=''; k1Count=0; addK1();
   ['s_otherincome','s_pyfed','s_pyca','s_pyagi','se_w2ss',
+   'ss_benefits','ss_taxexempt','ss_fica_withheld','ss_medicare_withheld',
    'est_fed_q1','est_fed_q2','est_fed_q3','est_fed_q4','est_ca_q1','est_ca_q2','est_ca_q3','est_ca_q4']
    .forEach(id=>{ if($(id)) $(id).value='0'; });
   if($('s_filing')) $('s_filing').value='mfj';
@@ -864,10 +997,25 @@ function loadDemo(){
   setRemaining(0); updateSourceTitle(0);
   set('se_0_company','Uber (side gig)'); set('se_0_gross','4000'); set('se_0_tips','474');
   updateSeTitle(0);
+  // Social Security benefits (taxed up to 85% federally, $0 by CA)
+  set('ss_benefits','24000');
+  // Rentals: a US property (net income) + a Mexico property (also estimates Mexican ISR)
+  set('rent_0_label','Duplex on 5th St'); set('rent_0_loc','us');
+  set('rent_0_rents','36000'); set('rent_0_expenses','14000'); set('rent_0_deprec','7000');
+  applyRentLoc(0); updateRentTitle(0);
+  const m=addRental();
+  set(`rent_${m}_label`,'Condo in Playa del Carmen'); set(`rent_${m}_loc`,'mx');
+  set(`rent_${m}_rents`,'18000'); set(`rent_${m}_expenses`,'5000'); set(`rent_${m}_deprec`,'3000');
+  set(`rent_${m}_mxrate`,'25'); applyRentLoc(m); updateRentTitle(m);
+  // K-1 from a passive partnership interest
+  set('k1_0_name','Acme Partners LP'); set('k1_0_type','partnership');
+  set('k1_0_ord','12000'); set('k1_0_int','800'); set('k1_0_div','1500');
+  updateK1Title(0);
   set('s_filing','single'); seedCaExempt();
   set('s_pyfed','11000'); set('s_pyca','3500'); set('s_pyagi','120000');
-  if($('src_0_details')) $('src_0_details').open=true;
-  if($('se_0_details')) $('se_0_details').open=true;
+  ['src_0_details','se_0_details','ss_details','rent_details',`rent_${m}_details`,'k1_details']
+    .forEach(id=>{ if($(id)) $(id).open=true; });
+  if($('rent_0_details')) $('rent_0_details').open=true;
   formatAll();
   calculate();
   $('results').scrollIntoView({behavior:'smooth',block:'start'});
@@ -1009,6 +1157,7 @@ function buildReportHtml(){
     <h2>What you need to pay</h2>${$('bottomline').innerHTML}
     <h2>Estimated payment schedule</h2>${$('schedule').innerHTML}
     <h2>Federal &amp; California</h2><div class="cards"><div class="rc">${$('card_federal').innerHTML}</div><div class="rc">${$('card_ca').innerHTML}</div></div>
+    ${$('mexicoBlock') && $('mexicoBlock').innerHTML.trim() ? $('mexicoBlock').innerHTML : ''}
     <h2>Worksheets</h2><div class="breakdown">${$('bd_fed').textContent}</div><br><div class="breakdown">${$('bd_ca').textContent}</div>
     <p class="note" style="margin-top:24px">This is an estimate only and not tax or legal advice. Verify all figures against the IRS, the California FTB, and your own return or advisor. Generated by the Fast Insights Estimated Tax tool.</p>
     </body></html>`;
@@ -1033,6 +1182,10 @@ function buildCsv(){
   row('Estimated Tax Summary', y); row('Filing status', filingLabel); row('');
   row('Projected full-year wages', Math.round(lc.inp.fyWages));
   if(lc.inp.seNetProfit>0) row('Self-employment net profit', Math.round(lc.inp.seNetProfit));
+  if(lc.x && lc.x.rentalNet) row('Net rental income (US + Mexico)', Math.round(lc.x.rentalNet));
+  { const k1=lc.inp.k1Ord+lc.inp.k1Gp+lc.inp.k1Int+lc.inp.k1Div+lc.inp.k1Cap+lc.inp.k1Rental;
+    if(k1) row('K-1 income', Math.round(k1)); }
+  if(lc.x && lc.x.ssInfo && lc.x.ssInfo.taxable>0) row('Taxable Social Security (CA exempt)', Math.round(lc.x.ssInfo.taxable));
   row('');
   row('', 'Federal', 'California');
   row('Projected full-year tax', Math.round(lc.fedSH.projectedTax), Math.round(lc.caSH.projectedTax));
@@ -1053,7 +1206,8 @@ function buildCsv(){
   row('Due date','Federal','California');
   labels.forEach(l=> row(l, Math.round(map[l].f||0), Math.round(map[l].c||0)));
   row('Total', Math.round(lc.fedSH.shortfallVsSafe), Math.round(lc.caSH.shortfallVsSafe));
-  row(''); row('Estimate only — not tax advice. Verify against the IRS and CA FTB.');
+  if(lc.inp.mxTax>0){ row(''); row('Mexico rental tax (ISR — separate, no US/CA credit)', Math.round(lc.inp.mxTax)); }
+  row(''); row('Estimate only — not tax advice. Verify against the IRS, CA FTB, and (for Mexico) a contador.');
   return R.join('\r\n');
 }
 function downloadCsv(){
@@ -1094,6 +1248,134 @@ function gatherSe(){
     const mileageDed=miles*TAX.se.mileageRate;
     arr.push({label:val(`se_${j}_company`).trim()||('1099 source '+(j+1)),
       gross, tips, expenses, miles, mileageDed, net:gross+tips-expenses-mileageDed});
+  }
+  return arr;
+}
+
+/* ---- Rental property cards (Schedule E; US + Mexico) ---- */
+let rentCount=0;
+function rentCardHTML(i){
+  return `
+  <div class="source" id="rent_${i}">
+    <details id="rent_${i}_details">
+    <summary class="collapse-head"><span id="rent_${i}_title">Property ${i+1}</span>
+      <button class="btn danger rm" data-rentremove="${i}" title="Remove">Remove</button></summary>
+    <div class="grid" style="margin-top:10px">
+      <div class="row"><label>Property label / address</label><input id="rent_${i}_label" placeholder="e.g. Duplex on 5th St"></div>
+      <div class="row"><label>Location</label>
+        <select id="rent_${i}_loc">
+          <option value="us" selected>United States</option>
+          <option value="mx">Mexico</option>
+        </select></div>
+    </div>
+    <div class="grid">
+      <div class="row"><label>Gross rents received</label><input class="num money" id="rent_${i}_rents" value="0"></div>
+      <div class="row"><label>Operating expenses (taxes, insurance, repairs, mgmt, interest…)</label><input class="num money" id="rent_${i}_expenses" value="0"></div>
+      <div class="row"><label>Depreciation</label><input class="num money" id="rent_${i}_deprec" value="0"></div>
+    </div>
+    <label class="checkrow"><input type="checkbox" id="rent_${i}_active" checked> I actively participate (a net loss can offset other income, up to $25k)</label>
+    <div class="grid hidden" data-mx="${i}" style="margin-top:4px">
+      <div class="row"><label>Mexican ISR rate on gross rent (%)</label><input class="num opt" id="rent_${i}_mxrate" value="25"></div>
+    </div>
+    <p class="note hidden" data-mx="${i}">Mexico taxes nonresident landlords a flat rate on <strong>gross</strong> rent (no deductions). This Mexican tax is shown <strong>separately</strong> — the rent is <em>also</em> U.S.-taxable (worldwide income), and California gives <strong>no</strong> foreign-tax credit, so expect tax in both. Registering an RFC may allow a lower net-based rate — enter that effective % instead.</p>
+    </details>
+  </div>`;
+}
+function updateRentTitle(i){
+  const t=$(`rent_${i}_title`); if(!t) return;
+  const flag = val(`rent_${i}_loc`)==='mx' ? ' (Mexico)' : '';
+  t.textContent = (val(`rent_${i}_label`).trim() || ('Property '+(i+1))) + flag;
+}
+function applyRentLoc(i){
+  const mx = val(`rent_${i}_loc`)==='mx';
+  document.querySelectorAll(`[data-mx="${i}"]`).forEach(el=>el.classList.toggle('hidden', !mx));
+  updateRentTitle(i);
+}
+function addRental(open){
+  const i=rentCount++;
+  $('rentList').insertAdjacentHTML('beforeend', rentCardHTML(i));
+  $(`rent_${i}_label`).addEventListener('input', ()=>updateRentTitle(i));
+  $(`rent_${i}_loc`).addEventListener('change', ()=>applyRentLoc(i));
+  applyRentLoc(i);
+  if(open) $(`rent_${i}_details`).open=true;
+  formatAll(); markDirty();
+  return i;
+}
+function removeRental(i){
+  const el=$(`rent_${i}`); if(el) el.remove();
+  if(!$('rentList').children.length) addRental();
+  markDirty();
+}
+function gatherRental(){
+  const arr=[];
+  for(let i=0;i<rentCount;i++){ if(!$(`rent_${i}`)) continue;
+    const loc=val(`rent_${i}_loc`);
+    const rents=nval(`rent_${i}_rents`), expenses=nval(`rent_${i}_expenses`), deprec=nval(`rent_${i}_deprec`);
+    const net=rents-expenses-deprec;
+    const active=$(`rent_${i}_active`) ? $(`rent_${i}_active`).checked : false;
+    const mxRate=loc==='mx' ? num(val(`rent_${i}_mxrate`))/100 : 0;
+    const mxTax=loc==='mx' ? mexicoRentalTax(rents, mxRate) : 0;
+    arr.push({label:val(`rent_${i}_label`).trim()||('Property '+(i+1)),
+      loc, rents, expenses, deprec, net, active, mxRate, mxTax});
+  }
+  return arr;
+}
+
+/* ---- Schedule K-1 cards (partnership / S-corp / trust) ---- */
+let k1Count=0;
+function k1CardHTML(i){
+  return `
+  <div class="source" id="k1_${i}">
+    <details id="k1_${i}_details">
+    <summary class="collapse-head"><span id="k1_${i}_title">K-1 ${i+1}</span>
+      <button class="btn danger rm" data-k1remove="${i}" title="Remove">Remove</button></summary>
+    <div class="grid" style="margin-top:10px">
+      <div class="row"><label>Entity name</label><input id="k1_${i}_name" placeholder="e.g. Acme Partners LP"></div>
+      <div class="row"><label>Entity type</label>
+        <select id="k1_${i}_type">
+          <option value="partnership" selected>Partnership (1065)</option>
+          <option value="scorp">S-corporation (1120-S)</option>
+          <option value="trust">Trust / estate (1041)</option>
+        </select></div>
+    </div>
+    <div class="grid">
+      <div class="row"><label>Ordinary business income (box 1)</label><input class="num money" id="k1_${i}_ord" value="0"></div>
+      <div class="row"><label>Net rental real estate (box 2)</label><input class="num money" id="k1_${i}_rental" value="0"></div>
+      <div class="row"><label>Guaranteed payments (box 4)</label><input class="num money" id="k1_${i}_gp" value="0"></div>
+    </div>
+    <div class="grid">
+      <div class="row"><label>Interest income (box 5)</label><input class="num money" id="k1_${i}_int" value="0"></div>
+      <div class="row"><label>Ordinary dividends (box 6a)</label><input class="num money" id="k1_${i}_div" value="0"></div>
+      <div class="row"><label>Net capital gain (box 9a / 4a)</label><input class="num money" id="k1_${i}_cap" value="0"></div>
+    </div>
+    <label class="checkrow"><input type="checkbox" id="k1_${i}_se"> Ordinary income &amp; guaranteed payments are subject to self-employment tax (general partner, materially participating)</label>
+    </details>
+  </div>`;
+}
+function updateK1Title(i){
+  const t=$(`k1_${i}_title`); if(!t) return;
+  t.textContent = val(`k1_${i}_name`).trim() || ('K-1 '+(i+1));
+}
+function addK1(open){
+  const i=k1Count++;
+  $('k1List').insertAdjacentHTML('beforeend', k1CardHTML(i));
+  $(`k1_${i}_name`).addEventListener('input', ()=>updateK1Title(i));
+  if(open) $(`k1_${i}_details`).open=true;
+  formatAll(); markDirty();
+  return i;
+}
+function removeK1(i){
+  const el=$(`k1_${i}`); if(el) el.remove();
+  if(!$('k1List').children.length) addK1();
+  markDirty();
+}
+function gatherK1(){
+  const arr=[];
+  for(let i=0;i<k1Count;i++){ if(!$(`k1_${i}`)) continue;
+    const se=$(`k1_${i}_se`) ? $(`k1_${i}_se`).checked : false;
+    arr.push({label:val(`k1_${i}_name`).trim()||('K-1 '+(i+1)), type:val(`k1_${i}_type`),
+      ord:nval(`k1_${i}_ord`), rental:nval(`k1_${i}_rental`), gp:nval(`k1_${i}_gp`),
+      interest:nval(`k1_${i}_int`), dividends:nval(`k1_${i}_div`), cap:nval(`k1_${i}_cap`), se});
   }
   return arr;
 }
@@ -1230,10 +1512,36 @@ function gatherAll(){
   const seExpenses=seSources.reduce((a,s)=>a+s.expenses,0), seMiles=seSources.reduce((a,s)=>a+s.miles,0);
   const seMileageDed=seSources.reduce((a,s)=>a+s.mileageDed,0), seW2ss=nval('se_w2ss');
   const seNetProfit=Math.max(0, seSources.reduce((a,s)=>a+s.net,0));
+
+  // Rental properties (Schedule E) — US + Mexico
+  const rentals=gatherRental();
+  const rentUSnet=rentals.filter(r=>r.loc==='us').reduce((a,r)=>a+r.net,0);
+  const rentMXnet=rentals.filter(r=>r.loc==='mx').reduce((a,r)=>a+r.net,0);
+  const rentGrossMX=rentals.filter(r=>r.loc==='mx').reduce((a,r)=>a+r.rents,0);
+  const mxTax=rentals.reduce((a,r)=>a+r.mxTax,0);
+
+  // Schedule K-1s
+  const k1s=gatherK1();
+  const k1Ord=k1s.reduce((a,k)=>a+k.ord,0);
+  const k1Rental=k1s.reduce((a,k)=>a+k.rental,0);
+  const k1Gp=k1s.reduce((a,k)=>a+k.gp,0);
+  const k1Int=k1s.reduce((a,k)=>a+k.interest,0);
+  const k1Div=k1s.reduce((a,k)=>a+k.dividends,0);
+  const k1Cap=k1s.reduce((a,k)=>a+k.cap,0);
+  const k1SeBase=k1s.reduce((a,k)=> a + (k.se ? (k.ord + k.gp) : 0), 0);
+
+  // All rental (Sch E + K-1 box 2) pooled for the passive-loss allowance & NIIT.
+  const rentPoolNet=rentUSnet+rentMXnet+k1Rental;
+  const rentActiveFlag=rentals.some(r=>r.active);
+
   return {sources,
     fyWages:sum('fyWages')+nval('s_otherincome'), fyWagesOnly:sum('fyWages'), fyFed:sum('fyFed'), fyCa:sum('fyCa'),
     estFed, estCa,
     seSources, seGross, seTips, seExpenses, seMiles, seW2ss, seMileageDed, seNetProfit,
+    rentals, rentUSnet, rentMXnet, rentGrossMX, mxTax, rentPoolNet, rentActiveFlag,
+    k1s, k1Ord, k1Rental, k1Gp, k1Int, k1Div, k1Cap, k1SeBase,
+    ssBenefits:nval('ss_benefits'), ssTaxExempt:nval('ss_taxexempt'),
+    ssFica:nval('ss_fica_withheld'), ssMedicare:nval('ss_medicare_withheld'),
     periodsLeft:sources.reduce((a,s)=>a+s.periodsLeft,0),
     pyFed:nval('s_pyfed'), pyCa:nval('s_pyca'), pyAgi:nval('s_pyagi')};
 }
@@ -1242,29 +1550,70 @@ function calculate(){
   const filing=val('s_filing'); readAssumptions();
   const inp=gatherAll(); const isMFS=filing==='mfs';
 
-  // Self-employment tax + AGI effect (1099 net profit added; half SE tax deducted).
-  const seInfo = selfEmploymentTax(inp.seNetProfit, inp.seW2ss, TAX.se);
-  const agi = inp.fyWages + inp.seNetProfit - seInfo.halfDeduction;
+  // Self-employment tax: 1099 net profit + any SE-subject K-1 income / guaranteed payments.
+  const seBaseInput = Math.max(0, inp.seNetProfit + inp.k1SeBase);
+  const seInfo = selfEmploymentTax(seBaseInput, inp.seW2ss, TAX.se);
+
+  // K-1 capital LOSS is limited to $3,000 / $1,500 MFS against ordinary income (§1211(b));
+  // the unused remainder carries forward. (A gain passes through unchanged — see disclaimer.)
+  const k1CapFloor = isMFS ? -1500 : -3000;
+  const k1CapForAGI = Math.max(inp.k1Cap, k1CapFloor);
+  const k1CapSuspended = inp.k1Cap - k1CapForAGI;            // disallowed capital loss (carryforward), ≤ 0
+  // Passive rental: a net loss is limited to the $25k MAGI-phased allowance (active participation).
+  // MAGI proxy = all other income (before the rental loss and before Social Security).
+  const incomeExRental = inp.fyWages + inp.seNetProfit + inp.k1Ord + inp.k1Gp
+    + inp.k1Int + inp.k1Div + k1CapForAGI - seInfo.halfDeduction;
+  // Schedule E (US + Mexico) uses its active-participation flag; K-1 box-2 rental is treated as
+  // PASSIVE (limited-partner default) so its losses are suspended and can't borrow Schedule E's
+  // $25k allowance (§469(i)(6)(C)). Run them separately, then combine.
+  const seRentNet = inp.rentUSnet + inp.rentMXnet;
+  const seRentAllow = rentalAllowedNet(seRentNet, incomeExRental, inp.rentActiveFlag, filing, TAX.rental);
+  const k1RentAllow = rentalAllowedNet(inp.k1Rental, incomeExRental, false, filing, TAX.rental);
+  const rentalNet = seRentAllow.allowed + k1RentAllow.allowed;   // amount included in income this year
+  const rentAllow = {allowed:rentalNet, suspended:seRentAllow.suspended + k1RentAllow.suspended,
+    allowance:seRentAllow.allowance};
+
+  // Social Security: taxable portion from the provisional-income worksheet (federal only).
+  const modAGIexSS = incomeExRental + rentalNet;             // AGI before Social Security
+  const provisional = modAGIexSS + inp.ssTaxExempt + 0.5*inp.ssBenefits;
+  const ssInfo = taxableSocialSecurity(inp.ssBenefits, provisional, filing, TAX.federal.ssTaxation);
+
+  const agi = modAGIexSS + ssInfo.taxable;                   // federal AGI (includes taxable SS)
   const addlMed = additionalMedicareTax(inp.fyWagesOnly, seInfo.seBase, filing, TAX.federal.addlMedicare);
+
+  // 3.8% Net Investment Income Tax on rental + portfolio income (federal only).
+  const nii = Math.max(0, rentalNet) + inp.k1Int + inp.k1Div + Math.max(0, inp.k1Cap);
+  const niit = netInvestmentIncomeTax(nii, agi, filing, TAX.federal.niit);
+
+  // Excess Social Security tax withheld across 2+ employers → refundable federal credit.
+  const excessSS = excessSocialSecurityCredit(inp.ssFica, TAX.federal.fica);
+  // Employer-withheld Additional Medicare Tax (0.9% on EACH job's wages over $200k) is credited on
+  // Form 8959 Part IV → 1040 line 25c. Computed per source so two sub-$200k W-2s correctly get $0,
+  // and only the wage (not SE) portion of the liability is offset.
+  const addlMedWithheld = inp.sources.reduce((a,s)=>
+    a + TAX.federal.addlMedicare.rate*Math.max(0, s.fyWages - TAX.federal.addlMedicare.employerWithholdFloor), 0);
 
   const fedStd=TAX.federal.std[filing]??TAX.federal.std.single;
   const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
   const fed=federalTax(agi, fedStd, fedBr, 0);
-  const fedProjected = fed.tax + seInfo.tax + addlMed;     // income tax + SE tax + 0.9% Medicare surtax
-  const fedSH=safeHarbor(fedProjected, inp.pyFed, inp.pyAgi, inp.fyFed + inp.estFed, {
+  const fedProjected = fed.tax + seInfo.tax + addlMed + niit;  // income + SE + 0.9% surtax + 3.8% NIIT
+  const fedSH=safeHarbor(fedProjected, inp.pyFed, inp.pyAgi, inp.fyFed + inp.estFed + excessSS + addlMedWithheld, {
     pyThreshold:TAX.federal.safeHarborPYthreshold, pyThresholdMFS:TAX.federal.safeHarborPYthresholdMFS,
     deMinimis:TAX.federal.deMinimis, isMFS});
 
+  // California starts from federal AGI but EXCLUDES Social Security entirely (caAgi = agi − taxable SS).
+  const caAgi = modAGIexSS;
   const caStd=TAX.ca.std[filing]??TAX.ca.std.single;
   const caBr=TAX.ca.brackets[filing]??TAX.ca.brackets.single;
-  const ca=californiaTax(agi, caStd, caBr, nval('a_ca_exempt'),      // CA: no SE tax, but net profit is taxable
+  const ca=californiaTax(caAgi, caStd, caBr, nval('a_ca_exempt'),   // CA: no SE/NIIT, but the income is taxable
     TAX.ca.mentalHealthThreshold, TAX.ca.mentalHealthRate);
   const caSH=safeHarbor(ca.tax, inp.pyCa, inp.pyAgi, inp.fyCa + inp.estCa, {
     pyThreshold:TAX.ca.safeHarborPYthreshold, pyThresholdMFS:TAX.ca.safeHarborPYthresholdMFS,
     deMinimis:TAX.ca.deMinimis, highIncomeNoPY:TAX.ca.highIncomeNoPY, isMFS});
 
-  lastCalc = {inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed};
-  render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed);
+  const x={niit, nii, ssInfo, rentAllow, rentalNet, excessSS, addlMedWithheld, k1CapForAGI, k1CapSuspended, mxTax:inp.mxTax};
+  lastCalc = {inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x};
+  render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x);
   clearDirty();
 }
 
@@ -1300,11 +1649,11 @@ function optLine(label, amount, controlling, badge){
   const b=badge?` <span class="sub" style="font-size:11px">(${badge})</span>`:'';
   return `<div class="line"${controlling?' style="font-weight:700"':''}><span>${label}${mark}${b}</span><span>${money(amount)}</span></div>`;
 }
-function safeHarborCard(title, sh, withheld, estPaid, seTax, addlMed){
+function safeHarborCard(title, sh, withheld, estPaid, seTax, addlMed, niit, excessSS, addlMedWH){
   const onTrack = sh.shortfallVsSafe<=0 || sh.deMinimis;
   // Safe harbor met (no penalty) but a real balance is still owed when you file.
   const balanceDueAtFiling = sh.refund<=0 && sh.balanceDue>sh.deMinimisThreshold;
-  const parts=[]; if(seTax>0) parts.push(money(seTax)+' self-employment tax'); if(addlMed>0) parts.push(money(addlMed)+' Medicare surtax');
+  const parts=[]; if(seTax>0) parts.push(money(seTax)+' self-employment tax'); if(addlMed>0) parts.push(money(addlMed)+' Medicare surtax'); if(niit>0) parts.push(money(niit)+' net investment income tax');
   const extras = parts.length ? ` &mdash; incl. ${parts.join(' + ')}` : '';
   const pill = sh.refund>0 ? '<span class="pill good">Refund expected</span>'
     : !onTrack ? '<span class="pill bad">Short of safe harbor</span>'
@@ -1329,8 +1678,10 @@ function safeHarborCard(title, sh, withheld, estPaid, seTax, addlMed){
     <div class="line" style="font-weight:700;border-top:2px solid #0f172a;margin-top:4px">
       <span>Required to avoid penalty (${sh.controllingLabel})</span><span>${money(sh.required)}</span></div>
     <div class="line"><span>Projected withholding</span><span>${money(withheld)}</span></div>
-    ${estPaid>0?`<div class="line"><span>Estimated payments already made</span><span>${money(estPaid)}</span></div>
-    <div class="line" style="font-weight:600"><span>Total paid in</span><span>${money(sh.withholding)}</span></div>`:''}
+    ${estPaid>0?`<div class="line"><span>Estimated payments already made</span><span>${money(estPaid)}</span></div>`:''}
+    ${excessSS>0?`<div class="line"><span>Excess Social Security tax credit (2+ employers)</span><span>${money(excessSS)}</span></div>`:''}
+    ${addlMedWH>0?`<div class="line"><span>Additional Medicare tax withheld by employer</span><span>${money(addlMedWH)}</span></div>`:''}
+    ${(estPaid>0||excessSS>0||addlMedWH>0)?`<div class="line" style="font-weight:600"><span>Total paid in</span><span>${money(sh.withholding)}</span></div>`:''}
     <div class="line"><span>${sh.refund>0?'Projected refund':'Projected balance due at filing'}</span>
       <span style="color:${sh.refund>0?'#16a34a':(sh.balanceDue>0?'#d97706':'#16a34a')}">${money(sh.refund>0?sh.refund:sh.balanceDue)}</span></div>
     ${sh.refund<=0 && sh.deMinimis?`<div class="note good" style="margin:8px 0 0">Balance due under ${money(sh.deMinimisThreshold)} — no underpayment penalty even if short.</div>`:''}
@@ -1338,9 +1689,12 @@ function safeHarborCard(title, sh, withheld, estPaid, seTax, addlMed){
   `;
 }
 
-function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed){
+function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   $('results').classList.remove('hidden');
   renderSESummary(inp, seInfo);
+  renderRentSummary(inp, x);
+  renderK1Summary(inp, x);
+  renderSSSummary(inp, x);
 
   // Filing status drives the standard deduction and brackets, so keep it visible (and editable)
   // right on the results — a wrong/leftover filing status was otherwise easy to miss.
@@ -1370,8 +1724,9 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed){
     + (nval('s_otherincome')>0?`<tr><td>Other taxable income</td><td class="num">${money(nval('s_otherincome'))}</td><td class="num">—</td><td class="num">—</td></tr>`:'');
   $('r_fy_wages').textContent=money(inp.fyWages); $('r_fy_fed').textContent=money(inp.fyFed); $('r_fy_ca').textContent=money(inp.fyCa);
 
-  $('card_federal').innerHTML=safeHarborCard('Federal', fedSH, inp.fyFed, inp.estFed, seInfo.tax, addlMed);
-  $('card_ca').innerHTML=safeHarborCard('California', caSH, inp.fyCa, inp.estCa, 0, 0);
+  $('card_federal').innerHTML=safeHarborCard('Federal', fedSH, inp.fyFed, inp.estFed, seInfo.tax, addlMed, x.niit, x.excessSS, x.addlMedWithheld);
+  $('card_ca').innerHTML=safeHarborCard('California', caSH, inp.fyCa, inp.estCa, 0, 0, 0, 0, 0);
+  renderMexico(inp, x);
 
   // bracket-by-bracket math — preceded by how AGI / taxable income are built up
   const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
@@ -1380,15 +1735,29 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed){
   const fedSteps=[{label:'Projected full-year wages', amount:inp.fyWagesOnly}];
   if(otherIncome>0) fedSteps.push({label:'+ Other taxable income', amount:otherIncome});
   if(inp.seNetProfit>0) fedSteps.push({label:'+ Self-employment net profit (1099)', amount:inp.seNetProfit});
+  if(inp.k1Ord!==0) fedSteps.push({label:'+ K-1 ordinary business income (box 1)', amount:inp.k1Ord});
+  if(inp.k1Gp!==0) fedSteps.push({label:'+ K-1 guaranteed payments (box 4)', amount:inp.k1Gp});
+  if(inp.k1Int!==0) fedSteps.push({label:'+ K-1 interest (box 5)', amount:inp.k1Int});
+  if(inp.k1Div!==0) fedSteps.push({label:'+ K-1 dividends (box 6a)', amount:inp.k1Div});
+  if(x.k1CapForAGI!==0) fedSteps.push({label:'+ K-1 capital gain (box 9a/4a) — as ordinary'+(x.k1CapSuspended<0?' (loss capped at '+money(-x.k1CapForAGI)+')':''), amount:x.k1CapForAGI});
+  if(x.k1CapSuspended<0) fedSteps.push({label:`   (${money(-x.k1CapSuspended)} capital loss carries forward)`, amount:0});
+  if(x.rentalNet!==0) fedSteps.push({label:'+ Net rental income (Schedule E, US + Mexico)', amount:x.rentalNet});
   if(seInfo.halfDeduction>0) fedSteps.push({label:'– ½ self-employment tax (deductible)', amount:-seInfo.halfDeduction});
+  if(x.ssInfo.taxable>0) fedSteps.push({label:`+ Taxable Social Security (${Math.round(x.ssInfo.pctTaxed*100)}% of ${money(inp.ssBenefits)})`, amount:x.ssInfo.taxable});
   fedSteps.push({label:'= Adjusted gross income (AGI)', amount:fed.agi, bold:true});
   fedSteps.push({label:'– Standard deduction', amount:-fed.deduction});
   fedSteps.push({label:'= Taxable income', amount:fed.taxable, bold:true});
-  $('bracket_fed').innerHTML=taxableStepsHTML(fedSteps)+bracketTableHTML(fed.taxable, fedBr);
-  const caSteps=[
-    {label:'Adjusted gross income (AGI) — same as federal', amount:ca.caAgi},
-    {label:'– CA standard deduction', amount:-ca.std},
-    {label:'= CA taxable income', amount:ca.taxable, bold:true}];
+  const fedExtra=[];
+  if(seInfo.tax>0) fedExtra.push({label:'+ Self-employment tax', amount:seInfo.tax});
+  if(addlMed>0) fedExtra.push({label:'+ 0.9% additional Medicare tax', amount:addlMed});
+  if(x.niit>0) fedExtra.push({label:`+ 3.8% net investment income tax (on ${money(x.nii)})`, amount:x.niit});
+  if(fedExtra.length) fedExtra.push({label:'= Total federal tax', amount:fedSH.projectedTax, bold:true});
+  $('bracket_fed').innerHTML=taxableStepsHTML(fedSteps)+bracketTableHTML(fed.taxable, fedBr, fedExtra.length?fedExtra:null);
+  const caSteps=[{label:'Federal AGI', amount:fed.agi}];
+  if(x.ssInfo.taxable>0) caSteps.push({label:'– Social Security (California does not tax it)', amount:-x.ssInfo.taxable});
+  caSteps.push({label:'= California AGI', amount:ca.caAgi, bold:true});
+  caSteps.push({label:'– CA standard deduction', amount:-ca.std});
+  caSteps.push({label:'= CA taxable income', amount:ca.taxable, bold:true});
   const caExtra=[];
   if(ca.mentalHealth>0) caExtra.push({label:'+ 1% mental-health surcharge (income over $1M)', amount:ca.mentalHealth});
   if(ca.exemptionCredit>0) caExtra.push({label:'– exemption credit', amount:-ca.exemptionCredit});
@@ -1398,8 +1767,25 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed){
   renderBottomLine(inp, fedSH, caSH);
   renderSchedule(inp, fedSH, caSH);
 
-  $('bd_fed').textContent=fedWorksheet(inp, fed, fedSH, seInfo, addlMed);
-  $('bd_ca').textContent=caWorksheet(inp, ca, caSH);
+  $('bd_fed').textContent=fedWorksheet(inp, fed, fedSH, seInfo, addlMed, x);
+  $('bd_ca').textContent=caWorksheet(inp, ca, caSH, x);
+}
+// Mexico rental tax — shown SEPARATELY (no U.S. credit applied), since the rent is also
+// taxed by the U.S. and California taxes worldwide income with no foreign-tax credit.
+function renderMexico(inp, x){
+  const el=$('mexicoBlock'); if(!el) return;
+  const mx=inp.rentals.filter(r=>r.loc==='mx' && (r.rents>0 || r.mxTax>0));
+  if(!mx.length){ el.innerHTML=''; return; }
+  let rows='';
+  for(const r of mx) rows+=`<tr><td>${r.label}</td><td class="num">${money(r.rents)}</td><td class="num">${(r.mxRate*100).toFixed(1)}%</td><td class="num">${money(r.mxTax)}</td></tr>`;
+  el.innerHTML=`<div class="card" style="border-color:#fcd34d;background:#fffbeb">
+    <h2>Mexico rental property — Mexican income tax (ISR) <span class="pill info">separate from U.S. tax</span></h2>
+    <p class="sub">Nonresident landlords are taxed a flat rate on <strong>gross</strong> rent (no deductions). Shown on its own: the same rent is <strong>also</strong> included in your U.S. federal &amp; California income above (worldwide income), and California allows <strong>no</strong> foreign-tax credit — so you may owe in both countries.</p>
+    <table><thead><tr><th>Property</th><th>Gross rent</th><th>ISR rate</th><th>Mexican tax</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tbody style="font-weight:700"><tr><td>Total</td><td class="num">${money(inp.rentGrossMX)}</td><td></td><td class="num">${money(inp.mxTax)}</td></tr></tbody></table>
+    <p class="note">Mexican rental tax is typically remitted <strong>monthly</strong> (and an annual return filed) via the SAT. A registered <strong>RFC</strong> may instead allow progressive ISR on <em>net</em> rent after deductions — if so, set the rate field on the property to your effective net rate. IVA (16%) can apply to commercial/short-term rentals and is not modeled here. Verify with a Mexican accountant (contador).</p>
+  </div>`;
 }
 // Live summary of the self-employment calculation.
 function renderSESummary(inp, seInfo){
@@ -1413,6 +1799,59 @@ function renderSESummary(inp, seInfo){
     + `Self-employment tax <strong>${money(seInfo.tax)}</strong> = Social Security ${money(seInfo.ssPortion)} + Medicare ${money(seInfo.medicarePortion)}; half (${money(seInfo.halfDeduction)}) is deducted from income.`
     + (seInfo.tax===0 && inp.seNetProfit>0 ? ' <em>(under $400 net &mdash; no SE tax.)</em>' : '')
     + `<br><strong>1099 income has no withholding</strong>, so it typically increases your estimated payments below.`;
+}
+// Live summary of Social Security taxation + FICA tracking.
+function renderSSSummary(inp, x){
+  const el=$('ss_summary'); if(!el) return;
+  if(inp.ssBenefits<=0 && inp.ssFica<=0 && inp.ssMedicare<=0){ el.className='note'; el.textContent='No Social Security benefits or FICA entered.'; return; }
+  el.className='note warn';
+  let html='';
+  if(inp.ssBenefits>0){
+    const s=x.ssInfo;
+    html += `Of <strong>${money(inp.ssBenefits)}</strong> in benefits, <strong>${money(s.taxable)}</strong> (${Math.round(s.pctTaxed*100)}%) is taxable <strong>federally</strong>; <strong>California taxes $0</strong> of it.`
+      + `<br>Provisional income ${money(s.provisional)} = other income + tax-exempt interest + ½ of benefits (tested against ${money(s.base1)} / ${money(s.base2)}).`;
+  }
+  if(inp.ssFica>0 || inp.ssMedicare>0){
+    html += (html?'<br>':'') + `FICA withheld: Social Security ${money(inp.ssFica)} + Medicare ${money(inp.ssMedicare)} — a separate tax that does <em>not</em> reduce the income tax above.`;
+    if(x.excessSS>0) html += ` <strong>Excess Social Security tax ${money(x.excessSS)}</strong> (over one year's cap) is a refundable credit — added to your federal payments.`;
+  }
+  el.innerHTML=html;
+}
+// Live summary of rental properties (Schedule E), including Mexico.
+function renderRentSummary(inp, x){
+  const el=$('rent_summary'); if(!el) return;
+  const active=inp.rentals.filter(r=>r.rents>0 || r.expenses>0 || r.deprec>0);
+  if(!active.length){ el.className='note'; el.textContent='No rental income entered.'; return; }
+  el.className='note warn';
+  const byProp=active.map(r=>`${r.label}${r.loc==='mx'?' (MX)':''} <strong>${money(r.net)}</strong>`).join(' &middot; ');
+  let html=`Net rental income <strong>${money(x.rentalNet)}</strong>`;
+  if(inp.rentMXnet!==0 || inp.rentUSnet!==0) html += ` (US ${money(inp.rentUSnet)}${inp.rentMXnet!==0?` + Mexico ${money(inp.rentMXnet)}`:''}${inp.k1Rental!==0?` + K-1 ${money(inp.k1Rental)}`:''})`;
+  html += `.<br>By property: ${byProp}.`;
+  if(x.rentAllow.suspended>0) html += `<br><strong>${money(x.rentAllow.suspended)} of loss is suspended</strong> (passive-loss limit / phaseout) and carries forward — only ${money(-x.rentAllow.allowed)} offsets other income this year.`;
+  html += `<br>Rental income is <strong>not</strong> subject to self-employment tax; positive net counts toward the 3.8% net-investment-income tax.`;
+  if(inp.mxTax>0) html += `<br><strong>Mexican rental tax ${money(inp.mxTax)}</strong> is estimated separately (see the Mexico card in the results).`;
+  el.innerHTML=html;
+}
+// Live summary of K-1 income.
+function renderK1Summary(inp, x){
+  const el=$('k1_summary'); if(!el) return;
+  const any = inp.k1Ord||inp.k1Rental||inp.k1Gp||inp.k1Int||inp.k1Div||inp.k1Cap;
+  if(!any){ el.className='note'; el.textContent='No K-1 income entered.'; return; }
+  el.className='note warn';
+  const parts=[];
+  if(inp.k1Ord) parts.push(`ordinary ${money(inp.k1Ord)}`);
+  if(inp.k1Gp) parts.push(`guaranteed pmts ${money(inp.k1Gp)}`);
+  if(inp.k1Rental) parts.push(`rental ${money(inp.k1Rental)}`);
+  if(inp.k1Int) parts.push(`interest ${money(inp.k1Int)}`);
+  if(inp.k1Div) parts.push(`dividends ${money(inp.k1Div)}`);
+  if(inp.k1Cap) parts.push(`capital gain ${money(inp.k1Cap)}`);
+  let html=`K-1 income added to AGI: ${parts.join(' + ')}.`;
+  if(inp.k1SeBase>0) html += `<br><strong>${money(inp.k1SeBase)}</strong> is treated as self-employment income (general-partner toggle) and added to the SE-tax base.`;
+  else html += `<br>None marked subject to self-employment tax.`;
+  if(x && x.k1CapSuspended<0) html += `<br><strong>Capital loss capped at ${money(-x.k1CapForAGI)}</strong> against ordinary income (§1211); ${money(-x.k1CapSuspended)} carries forward.`;
+  if(inp.k1Rental) html += `<br>K-1 rental (box 2) is treated as <strong>passive</strong> (limited-partner default): income is taxed, but a loss is suspended (it can't use the $25k active-participation allowance).`;
+  html += `<br>Interest, dividends, rental & gains count toward the 3.8% net-investment-income tax. <em>Long-term capital gains are included as ordinary here — verify, as they may be taxed lower.</em>`;
+  el.innerHTML=html;
 }
 
 function renderBottomLine(inp, fedSH, caSH){
@@ -1490,7 +1929,8 @@ function renderSchedule(inp, fedSH, caSH){
   $('schedule').innerHTML=html;
 }
 
-function fedWorksheet(inp, fed, sh, seInfo, addlMed){
+function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
+  x=x||{ssInfo:{taxable:0,pctTaxed:0},niit:0,nii:0,rentalNet:0,rentAllow:{suspended:0},excessSS:0,addlMedWithheld:0,k1CapForAGI:inp.k1Cap,k1CapSuspended:0};
   const L=[];
   L.push('FEDERAL — projected '+TAX.year);
   L.push('────────────────────────────────────────');
@@ -1498,7 +1938,23 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed){
   if(inp.seNetProfit>0 || (seInfo&&seInfo.tax>0)){
     L.push('Self-employment net profit (1099)    '+money2(inp.seNetProfit));
     L.push('  gross '+money2(inp.seGross)+(inp.seTips>0?' + tips '+money2(inp.seTips):'')+' − expenses '+money2(inp.seExpenses)+' − mileage '+money2(inp.seMileageDed));
-    L.push('Less 1/2 self-employment tax         -'+money2(seInfo.halfDeduction));
+  }
+  if(inp.k1Ord) L.push('K-1 ordinary business income (box 1) '+money2(inp.k1Ord));
+  if(inp.k1Gp)  L.push('K-1 guaranteed payments (box 4)      '+money2(inp.k1Gp));
+  if(inp.k1Int) L.push('K-1 interest (box 5)                 '+money2(inp.k1Int));
+  if(inp.k1Div) L.push('K-1 dividends (box 6a)               '+money2(inp.k1Div));
+  if(x.k1CapForAGI){
+    L.push('K-1 capital gain (box 9a/4a)         '+money2(x.k1CapForAGI));
+    if(x.k1CapSuspended<0) L.push('  (capital loss capped at $3,000/$1,500 MFS; '+money2(-x.k1CapSuspended)+' carries forward)');
+  }
+  if(x.rentalNet){
+    L.push('Net rental income (Schedule E)       '+money2(x.rentalNet));
+    if(x.rentAllow && x.rentAllow.suspended>0) L.push('  ('+money2(x.rentAllow.suspended)+' loss suspended → carryforward)');
+  }
+  if(seInfo && seInfo.halfDeduction>0) L.push('Less 1/2 self-employment tax         -'+money2(seInfo.halfDeduction));
+  if(x.ssInfo && x.ssInfo.taxable>0){
+    L.push('Taxable Social Security               '+money2(x.ssInfo.taxable));
+    L.push('  '+Math.round(x.ssInfo.pctTaxed*100)+'% of '+money2(inp.ssBenefits)+' (provisional income '+money2(x.ssInfo.provisional)+')');
   }
   L.push('AGI (simplified)                     '+money2(fed.agi));
   L.push('Less standard deduction              -'+money2(fed.deduction));
@@ -1512,8 +1968,12 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed){
     L.push('Additional Medicare tax (0.9%)       '+money2(addlMed));
     L.push('  on wages + SE income over the threshold');
   }
-  if((seInfo&&seInfo.tax>0) || addlMed>0)
-    L.push('Federal total tax (income + SE + surtax) '+money2(fed.tax+(seInfo?seInfo.tax:0)+(addlMed||0)));
+  if(x.niit>0){
+    L.push('Net investment income tax (3.8%)     '+money2(x.niit));
+    L.push('  on '+money2(x.nii)+' of rental + interest/dividends/gains');
+  }
+  if((seInfo&&seInfo.tax>0) || addlMed>0 || x.niit>0)
+    L.push('Federal total tax (income+SE+surtax+NIIT) '+money2(sh.projectedTax));
   L.push('');
   L.push('SAFE HARBOR — required = SMALLER of:');
   L.push('  90% of this year   = 0.90 × '+money2(sh.projectedTax)+' = '+money2(sh.o90));
@@ -1524,23 +1984,32 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed){
   L.push('  → Required = '+money2(sh.required)+'  ('+sh.controllingLabel+')');
   L.push('');
   L.push('Projected withholding                 '+money2(inp.fyFed));
-  if(inp.estFed>0){
-    L.push('Estimated payments already made       '+money2(inp.estFed));
-    L.push('Total paid in                         '+money2(sh.withholding));
-  }
+  if(inp.estFed>0) L.push('Estimated payments already made       '+money2(inp.estFed));
+  if(x.excessSS>0) L.push('Excess Social Security tax credit     '+money2(x.excessSS));
+  if(x.addlMedWithheld>0) L.push('Addl Medicare tax withheld (employer) '+money2(x.addlMedWithheld));
+  if(inp.estFed>0 || x.excessSS>0 || x.addlMedWithheld>0) L.push('Total paid in                         '+money2(sh.withholding));
   L.push(sh.refund>0?('Projected REFUND                      '+money2(sh.refund))
                     :('Projected balance due                 '+money2(sh.balanceDue)));
   L.push('Shortfall vs safe harbor              '+money2(sh.shortfallVsSafe));
   if(sh.refund<=0 && sh.deMinimis) L.push('Under '+money2(sh.deMinimisThreshold)+' → no penalty regardless.');
   if(inp.periodsLeft>0 && sh.shortfallVsSafe>0)
     L.push('Add per paycheck (safe harbor): '+money2(sh.shortfallVsSafe)+' ÷ '+inp.periodsLeft+' = '+money2(sh.shortfallVsSafe/inp.periodsLeft));
+  if(inp.mxTax>0){
+    L.push('');
+    L.push('MEXICO RENTAL TAX (separate — no U.S./CA credit)');
+    L.push('  '+(TAX.mexico.rentalGrossRate*100).toFixed(0)+'% of gross rent '+money2(inp.rentGrossMX)+' = '+money2(inp.mxTax)+' ISR');
+    L.push('  (rent is also in U.S. + CA income above)');
+  }
   return L.join('\n');
 }
-function caWorksheet(inp, ca, sh){
+function caWorksheet(inp, ca, sh, x){
+  x=x||{ssInfo:{taxable:0}};
   const L=[];
   L.push('CALIFORNIA — projected '+TAX.year+' (latest published schedule)');
   L.push('────────────────────────────────────────');
-  L.push('CA AGI (wages, simplified)           '+money2(ca.caAgi));
+  if(x.ssInfo && x.ssInfo.taxable>0)
+    L.push('(Social Security '+money2(x.ssInfo.taxable)+' excluded — CA does not tax it)');
+  L.push('CA AGI (wages + SE + rental + K-1)    '+money2(ca.caAgi));
   L.push('Less CA standard deduction           -'+money2(ca.std));
   L.push('CA taxable income                    '+money2(ca.taxable));
   L.push('CA tax (brackets)                    '+money2(ca.taxBeforeCredit));
@@ -1601,6 +2070,25 @@ function selfTest(){
   // Additional Medicare 0.9%: MFJ wages 300k over 250k -> 450; single SE base 250k over 200k -> 450
   approx(additionalMedicareTax(300000,0,'mfj',TAX.federal.addlMedicare),450,0.5,'Addl Medicare MFJ');
   approx(additionalMedicareTax(0,250000,'single',TAX.federal.addlMedicare),450,0.5,'Addl Medicare on SE');
+  // Social Security taxation (Pub 915 worksheet)
+  approx(taxableSocialSecurity(20000,30000,'mfj',TAX.federal.ssTaxation).taxable,0,0.5,'SS not taxed below base');
+  approx(taxableSocialSecurity(20000,40000,'mfj',TAX.federal.ssTaxation).taxable,4000,0.5,'SS 50% tier');
+  approx(taxableSocialSecurity(20000,50000,'mfj',TAX.federal.ssTaxation).taxable,11100,0.5,'SS 85% tier');
+  approx(taxableSocialSecurity(20000,200000,'mfj',TAX.federal.ssTaxation).taxable,17000,0.5,'SS capped at 85%');
+  // Rental passive-loss $25k allowance (active participation, MAGI phaseout)
+  approx(rentalAllowedNet(-30000,90000,true,'single',TAX.rental).allowed,-25000,0.5,'Rental loss full 25k');
+  approx(rentalAllowedNet(-30000,120000,true,'single',TAX.rental).allowed,-15000,0.5,'Rental loss phased');
+  approx(rentalAllowedNet(-30000,160000,true,'single',TAX.rental).allowed,0,0.5,'Rental loss fully phased out');
+  approx(rentalAllowedNet(5000,90000,true,'single',TAX.rental).allowed,5000,0.5,'Rental income passes through');
+  R.push(rentalAllowedNet(-10000,90000,false,'single',TAX.rental).allowed===0?'PASS rental loss suspended w/o active participation':'FAIL rental passive suspend');
+  // 3.8% Net Investment Income Tax
+  approx(netInvestmentIncomeTax(50000,300000,'mfj',TAX.federal.niit),1900,0.5,'NIIT on full NII');
+  approx(netInvestmentIncomeTax(50000,260000,'mfj',TAX.federal.niit),380,0.5,'NIIT limited by MAGI');
+  approx(netInvestmentIncomeTax(50000,200000,'mfj',TAX.federal.niit),0,0.5,'NIIT 0 under threshold');
+  // Mexico ISR + excess Social Security credit
+  approx(mexicoRentalTax(18000,0.25),4500,0.5,'Mexico ISR 25% of gross');
+  approx(excessSocialSecurityCredit(13000,TAX.federal.fica),13000-184500*0.062,0.5,'Excess SS credit');
+  R.push(excessSocialSecurityCredit(10000,TAX.federal.fica)===0?'PASS no excess SS under the cap':'FAIL excess SS under cap');
 
   const pass=R.every(r=>r.startsWith('PASS'));
   $('selftestMsg').innerHTML=(pass?'<span style="color:#16a34a">All self-tests passed.</span>':'<span style="color:#dc2626">Some self-tests FAILED.</span>')
@@ -1702,6 +2190,16 @@ addSeSource();   // start with one 1099 payer card
 $('addSeBtn').addEventListener('click', ()=>addSeSource(true));
 $('seList').addEventListener('click', e=>{
   const rm=e.target.getAttribute('data-seremove'); if(rm!==null){ e.preventDefault(); removeSeSource(+rm); }
+});
+addRental();   // start with one rental property card
+$('addRentBtn').addEventListener('click', ()=>addRental(true));
+$('rentList').addEventListener('click', e=>{
+  const rm=e.target.getAttribute('data-rentremove'); if(rm!==null){ e.preventDefault(); removeRental(+rm); }
+});
+addK1();       // start with one K-1 card
+$('addK1Btn').addEventListener('click', ()=>addK1(true));
+$('k1List').addEventListener('click', e=>{
+  const rm=e.target.getAttribute('data-k1remove'); if(rm!==null){ e.preventDefault(); removeK1(+rm); }
 });
 $('calcBtnTop').addEventListener('click', calculate);
 $('selftestBtn').addEventListener('click', selfTest);

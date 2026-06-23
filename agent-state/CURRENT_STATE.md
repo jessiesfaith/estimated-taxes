@@ -1,6 +1,6 @@
 # CURRENT_STATE - Estimated Taxes (W-2 Estimated Tax & Safe-Harbor Tool)
 
-_Last updated: 2026-06-07_
+_Last updated: 2026-06-22_
 
 ## Purpose
 Single-page static tool that estimates a W-2 earner's federal income tax and **safe-harbor** payment
@@ -20,7 +20,11 @@ leaves the browser.
 | Deploy (prod) | `npx vercel --prod` (Vercel CLI - deploys the working folder) |
 
 ## Key behavior
-- One page; W-2 inputs -> estimated annual/quarterly tax + safe-harbor target. All computation in JS.
+- One page; income inputs -> estimated annual/quarterly federal + CA tax + safe-harbor target. All computation in JS.
+- Income sections (each a collapsible card group): W-2/paystub sources, 1099 self-employment, **Social Security**
+  (taxed up to 85% fed / 0% CA + FICA & excess-SS-credit tracking), **passive rental (Schedule E, US + Mexico)**
+  with the $25k loss allowance + 3.8% NIIT, and **Schedule K-1** (partnership/S-corp/trust). Mexico rental also
+  estimates Mexican ISR (25% of gross) shown separately. (Added 2026-06-22 - see CHANGE_LOG.)
 - No persistence beyond the browser session.
 
 ## Git
