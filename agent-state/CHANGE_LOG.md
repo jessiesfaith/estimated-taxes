@@ -2,6 +2,21 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Populate all 50 states + DC (multi-state step 3)
+- **Files:** `index.html` (added a `STATE_DATA` block + `buildStates()` loader after the STATES registry).
+- **What:** All 50 states + DC now have a state estimate. Figures (brackets, std deduction, exemptions, SS taxation,
+  cap-gains exclusions, surtaxes) were researched (5-agent web-search workflow, 2026 or latest-published), transformed
+  to the engine schema programmatically (Node — no hand-transcription), and loaded via `buildStates()` (top bracket
+  upTo→Infinity, hoh/mfs default to single where a state has no separate schedule, generic 80% NOL, default safe harbor).
+- **Accuracy review:** a 5-agent adversarial review checked all 41 income-tax states against authoritative sources +
+  the engine's federal-AGI base model; it flagged 13 with material errors, all FIXED (18 corrections):
+  CO & SC (start from federal taxable income → std set to the federal standard deduction), HI (2026 std doubling under
+  Act 46), KS/LA/MD/ME/MS/OK/VT/DC (HOH/MFS std and OK brackets), IA (HOH exemption credit), MT (HOH brackets).
+- **Verification:** 49/49 self-tests pass; spot-checks recompute correctly (CO $100k single → $3,692 not $4,400;
+  HI → $5,883; NY → $4,860); **California byte-identical** (MFJ $80k → fed $5,240 / CA $1,173); no console errors.
+- **Disclaimer updated:** state estimates are approximate — local/city taxes and some state-specific
+  deductions/credits/retirement rules aren't modeled. (CA exemption credit left at the tool's existing 149/298.)
+
 ## 2026-06-23 - Generalize to a state-driven engine + state selector (step 1 of multi-state)
 - **Files:** `index.html`.
 - **Why:** the tool is being marketed nationwide; it was California-only and showed CA numbers to everyone.
