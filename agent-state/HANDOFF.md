@@ -3,7 +3,26 @@
 _Last updated: 2026-06-23_
 
 ## Active request status
-**COMPLETE.** Cleaned, deployed, and handed off. Nothing mid-flight.
+**COMPLETE** (deployed & working). One **deferred cosmetic issue** logged below — math is correct for every state;
+only some labels/notes still say "California."
+
+## KNOWN ISSUE — deferred to next session (cosmetic; results math is correct)
+When a non-CA state is selected, the **results** update (cards, rate breakdown, schedule, worksheet, Assumptions
+panel all follow the state) — but several **static input-section labels and a few live summary strings still hardcode
+"California"/"CA"**, so the state name doesn't update *everywhere*. Fix = swap these for the selected state's name (pass
+`ca.name`/`stateConfig(val('s_state')).name`, or genericize to "your state"). Spots (index.html):
+- Static HTML text: upload note "1040 & CA 540" (~L144); SE notes "federal & California estimate" / "California has no
+  separate SE tax … CA taxable income" (~L157, L163); SS note "California does not tax Social Security … CA income"
+  (~L172); QBI note "California does not allow it" (~L236); Step-2 "Form 1040 / CA 540" (~L252); input label
+  "Last year's TOTAL CA tax (540 line 64)" (~L276); NOL note "federal and California … California suspends" (~L283);
+  est-payments "540-ES (California)" header + col (~L287, L289); projected-table header "CA tax withheld" (~L315);
+  "California worksheet" <summary> label (~L356, content is dynamic); source-card input "CA income tax withheld"
+  (~L1310); PDF footer "the California FTB" (~L1409); Mexico notes "California gives/allows no foreign-tax credit"
+  (~L1536, L2134).
+- Live summary fns hardcoding "California": `renderSSSummary` ("California taxes $0") , `renderK1Summary`
+  ("California taxes it all as ordinary"), `renderInvSummary`, `renderQbiSummary` ("California allows $0"). Pass the
+  state name in (these already receive `inp`,`x`; add `ca`).
+Note: CA-prefixed input IDs (`a_ca_*`, `s_pyca`, `src_*_cawh_*`) are fine to keep as IDs — only the visible text needs to follow the state.
 
 ## What this tool is now
 Single-file (`index.html`, ~195 KB, vanilla HTML/CSS/JS, no build) estimated-tax & safe-harbor calculator.

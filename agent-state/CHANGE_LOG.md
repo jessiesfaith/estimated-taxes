@@ -2,6 +2,11 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Log deferred cosmetic issue (state name doesn't update everywhere)
+- User noticed some input-section labels/notes still say "California" after selecting another state (results math is
+  correct for all states; only visible labels/summary strings are hardcoded). Deferred per user request; documented
+  with the exact spots in `HANDOFF.md` ("KNOWN ISSUE") and flagged as a follow-up task. No code change this turn.
+
 ## 2026-06-23 - Final clean + handoff refresh
 - Re-clean: no debug code/TODOs/orphaned functions (every fn referenced; `mxnPerUsd` already removed); repo tree clean.
 - Refreshed `HANDOFF.md` to include the post-handoff changes (live state recompute, state-aware Assumptions panel,
