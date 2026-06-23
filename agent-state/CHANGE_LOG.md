@@ -2,6 +2,21 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Add in-app Field Guide (right-pane: per-field broad / example / granular detail)
+- New slide-in RIGHT pane, opened by a "Field guide" header button + a floating button. Covers all **75 fields across
+  11 sections**; each entry = a broad one-liner ("what goes here") + a green example + an expandable "More detail"
+  (what counts, common mistakes, how it flows into the math). Includes a "Reading your results" section.
+- UX: a search box filters fields; **focus-sync** highlights & scrolls to a field's guide entry when that field is
+  focused (works for the repeating source/rental/K-1/est-payment cards via id->key derivation, e.g. `src_0_salary_cur`
+  -> `src_salary`, `est_fed_q1` -> `est_fed`); Esc / backdrop close; full-width on mobile.
+- Content was drafted AND tax-accuracy-reviewed by a 22-agent workflow against the tool's actual math, in an
+  "explain-don't-advise" tone. Embedded as a `<script type="application/json" id="guideData">` block (JSON.parse at
+  load) and rendered by a self-contained IIFE at the end of the main script (no global collisions; uses the existing `$`).
+- Architecture: CSS under "Field guide (right pane)"; markup (`#guideFab`/`#guideBackdrop`/`#guidePane`/`#guideData`)
+  right after `</header>`; JS IIFE before the closing `</script>`. To edit copy, change the `guideData` JSON.
+- Verified in-browser: 11 sections / 75 fields render; open/close/Esc; filter; focus-sync for static + templated ids;
+  no console errors. (selfTest unaffected.)
+
 ## 2026-06-23 - Fix: state name now follows the selected state in ALL labels/notes (resolves the deferred cosmetic issue)
 - New `updateStateLabels()` (runs from `updateAssumptionsForState()`, i.e. on load + every state change) retitles the
   previously-hardcoded "California"/"CA" UI text to the selected state. Added `<span>`/`id` hooks to the static

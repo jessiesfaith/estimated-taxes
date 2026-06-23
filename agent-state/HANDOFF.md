@@ -58,6 +58,11 @@ Covers, for **federal + all 50 states + DC**:
   nolDeduction, netCapitalGain, taxableSocialSecurity, rentalAllowedNet, netInvestmentIncomeTax, selfEmploymentTax,
   additionalMedicareTax, excessSocialSecurityCredit, mexicoRentalTax, stateTax, safeHarbor, estSchedule.
 - **Engine entry:** `calculate()` → `render()` + worksheets (`fedWorksheet`/`caWorksheet`) + `buildCsv`/`buildReportHtml`.
+- **Field guide (right pane):** content lives in the `<script type="application/json" id="guideData">` block (11 sections /
+  75 fields, each `{key,label,broad,example,detail}`); markup (`#guideFab`/`#guideBackdrop`/`#guidePane`) sits right after
+  `</header>`; a self-contained IIFE before `</script>` renders it, wires open/close/Esc/search, and does **focus-sync**
+  (focusing a field highlights its entry — `gpKey()` strips the per-card index + `_cur/_ytd/_q#/_single/_mfj/_hoh` suffix
+  so `src_0_salary_cur`→`src_salary`). CSS under "Field guide (right pane)". To edit copy, change the `guideData` JSON only.
 
 ## How this was verified
 - `selfTest()` (the "Run self-test" button): **all pass (45 cases, 0 fail)** — verified in-browser 2026-06-23. Run it after any edit.
