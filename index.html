@@ -264,8 +264,13 @@
         <option value="mfs">Married filing separately</option>
       </select>
     </div>
+    <div class="row">
+      <label>State (for the state estimate)</label>
+      <select id="s_state"></select>
+    </div>
     <div class="row"><label>Other taxable income (non-wage, optional)</label><input class="num money" id="s_otherincome" value="0" /></div>
   </div>
+  <p class="note">Federal is calculated for everyone. The <strong>state</strong> estimate is California today (more states being added) — pick a no-income-tax state or "Other / not added yet" to see a federal-only result with no state tax.</p>
   <div class="grid">
     <div class="row"><label>Last year's TOTAL federal tax (1040 line 22)</label><input class="num money" id="s_pyfed" value="0" /></div>
     <div class="row"><label>Last year's TOTAL CA tax (540 line 64)</label><input class="num money" id="s_pyca" value="0" /></div>
@@ -329,7 +334,7 @@
       <p class="sub" style="margin-top:8px">First we work down from your income to <strong>AGI</strong> and then <strong>taxable income</strong>; then tax is <strong>progressive</strong> &mdash; each slice of taxable income is taxed at its own 2026 rate, not your whole income at the top rate. The <strong>full IRS and FTB rate schedules</strong> are shown below (brackets your income doesn't reach are greyed out); long-term capital gains &amp; qualified dividends get the federal <strong>0/15/20%</strong> rates layered on top. Here's how the projected tax on the cards above is built up.</p>
       <h3 style="margin:8px 0 4px;font-size:14px">Federal (IRS)</h3>
       <div id="bracket_fed"></div>
-      <h3 style="margin:18px 0 4px;font-size:14px">California (FTB)</h3>
+      <h3 id="stateBracketHdr" style="margin:18px 0 4px;font-size:14px">California (FTB)</h3>
       <div id="bracket_ca"></div>
     </details>
   </div>
@@ -555,6 +560,25 @@ function populateYears(){
   }
   sel.value=TAX.year;
 }
+// Build the state dropdown from the STATES registry: California first, then the rest by name,
+// with "Other / not added yet" last. (Used for both the Step-2 select and the results-banner select.)
+function stateOptionList(selected){
+  const entries=Object.values(STATES);
+  const ca=entries.find(s=>s.code==='CA');
+  const other=entries.find(s=>s.code==='');
+  const rest=entries.filter(s=>s.code!=='CA' && s.code!=='').sort((a,b)=>a.name.localeCompare(b.name));
+  const ordered=[ca, ...rest, other].filter(Boolean);
+  return ordered.map(s=>{
+    const label = s.noTax && s.code ? `${s.name} — no state income tax` : s.name;
+    return `<option value="${s.code}"${s.code===selected?' selected':''}>${label}</option>`;
+  }).join('');
+}
+function populateStates(){
+  const sel=$('s_state'); if(!sel) return;
+  const cur=sel.value||'CA';
+  sel.innerHTML=stateOptionList(cur);
+  sel.value=cur;
+}
 
 /* =====================================================================
    PURE TAX FUNCTIONS (no DOM; easy to audit & self-test)
@@ -660,13 +684,57 @@ function nolDeduction(carryforward, taxableBeforeNOL, limitPct, suspended){
   const used=Math.min(cf, limit);
   return {deduction:used, used, remaining:cf-used, limit, suspended:false};
 }
-function californiaTax(caAgi, std, brackets, exemptionCredit, mhThr, mhRate, nol){
-  const taxable=Math.max(0,caAgi-std-(nol||0));   // NOL carryforward reduces CA taxable income
-  let tax=bracketTax(taxable,brackets);
-  const mentalHealth = caAgi>mhThr ? (caAgi-mhThr)*mhRate : 0;
-  tax+=mentalHealth;
-  return {caAgi, std, nol:nol||0, taxable, taxBeforeCredit:tax, exemptionCredit, mentalHealth,
-    tax:Math.max(0, tax-(exemptionCredit||0))};
+/* =====================================================================
+   STATE INCOME TAX — generic, state-driven (California is one entry).
+   Each income-tax state supplies brackets{single,mfj,hoh,mfs}, std{...}, optional
+   exemptionCredit{...} ($ off tax), taxesSS, capGainsExclusionPct, optional surtax{threshold,rate},
+   nol{limitPct, suspendIncomeThreshold?}, safeHarbor{...}, schedKind ('fed' 25/25/25/25 | 'ca' 30/40/0/30).
+   California reuses its editable, year-keyed TAX.ca block via getters so nothing about CA changes.
+   No-/other- state entries set noTax:true. More income-tax states get added to this map. */
+const STATES = {
+  '':  { code:'',   name:'Other state / not added yet (federal only)', noTax:true },
+  CA:  { code:'CA', name:'California', taxesSS:false, capGainsExclusionPct:0, schedKind:'ca',
+         get brackets(){return TAX.ca.brackets;}, get std(){return TAX.ca.std;},
+         get exemptionCredit(){return TAX.ca.exemptionCredit;},
+         get surtax(){return {threshold:TAX.ca.mentalHealthThreshold, rate:TAX.ca.mentalHealthRate};},
+         get nol(){return TAX.ca.nol;},
+         get safeHarbor(){return {pyThreshold:TAX.ca.safeHarborPYthreshold, pyThresholdMFS:TAX.ca.safeHarborPYthresholdMFS,
+                                  highIncomeNoPY:TAX.ca.highIncomeNoPY, deMinimis:TAX.ca.deMinimis};} },
+  AK:{code:'AK',name:'Alaska',noTax:true},        FL:{code:'FL',name:'Florida',noTax:true},
+  NV:{code:'NV',name:'Nevada',noTax:true},        NH:{code:'NH',name:'New Hampshire',noTax:true},
+  SD:{code:'SD',name:'South Dakota',noTax:true},  TN:{code:'TN',name:'Tennessee',noTax:true},
+  TX:{code:'TX',name:'Texas',noTax:true},         WA:{code:'WA',name:'Washington',noTax:true},
+  WY:{code:'WY',name:'Wyoming',noTax:true},
+};
+const DEFAULT_STATE_SAFE_HARBOR = {pyThreshold:150000, pyThresholdMFS:75000, deMinimis:500};
+function pickByFiling(obj, filing){ return obj ? (obj[filing] ?? obj.single ?? 0) : 0; }
+function stateConfig(code){ return STATES[code] || STATES['']; }
+// Generic state income tax for the selected state. `baseExSS` is the non-Social-Security income
+// BEFORE the federal NOL (states figure their own NOL, so they don't inherit the federal one).
+// State AGI adds back SS only if the state taxes it, optionally excludes a % of long-term capital
+// gain, then applies the state standard deduction, its own NOL (optional high-income suspension),
+// brackets, surtax, and exemption credit. Returns caAgi/mentalHealth keys for render compatibility.
+function stateTax(code, baseExSS, taxableSS, ltGain, filing, nolCf, exemptOverride){
+  const S = stateConfig(code);
+  if(S.noTax){
+    return {code:S.code, name:S.name, noTax:true, caAgi:0, std:0, nol:{deduction:0,remaining:Math.max(0,nolCf||0),suspended:false},
+      taxable:0, taxBeforeCredit:0, mentalHealth:0, exemptionCredit:0, tax:0, schedKind:'fed', safeHarbor:DEFAULT_STATE_SAFE_HARBOR};
+  }
+  let agi = baseExSS + (S.taxesSS ? (taxableSS||0) : 0);
+  if(S.capGainsExclusionPct>0 && ltGain>0) agi -= ltGain*S.capGainsExclusionPct/100;
+  const std = pickByFiling(S.std, filing);
+  const brackets = S.brackets[filing] || S.brackets.single;
+  const suspended = !!(S.nol && S.nol.suspendIncomeThreshold && agi >= S.nol.suspendIncomeThreshold);
+  const nol = S.nol ? nolDeduction(nolCf, Math.max(0, agi-std), S.nol.limitPct, suspended)
+                    : {deduction:0,remaining:Math.max(0,nolCf||0),suspended:false};
+  const taxable = Math.max(0, agi - std - nol.deduction);
+  let tax = bracketTax(taxable, brackets);
+  const surtax = (S.surtax && agi>S.surtax.threshold) ? (agi-S.surtax.threshold)*S.surtax.rate : 0;
+  tax += surtax;
+  const exemptionCredit = (exemptOverride!=null) ? exemptOverride : pickByFiling(S.exemptionCredit, filing);
+  return {code:S.code, name:S.name, noTax:false, caAgi:agi, std, nol, taxable, taxBeforeCredit:tax,
+    mentalHealth:surtax, exemptionCredit, tax:Math.max(0, tax-(exemptionCredit||0)),
+    schedKind:S.schedKind||'fed', safeHarbor:S.safeHarbor||DEFAULT_STATE_SAFE_HARBOR};
 }
 // Self-employment tax (Schedule SE). The 12.4% Social Security portion is capped
 // at the SS wage base, reduced by W-2 wages already taxed for Social Security (same
@@ -1098,6 +1166,7 @@ function clearAll(){
   if($('qbi_enable')) $('qbi_enable').checked=true;
   if($('qbi_sstb')) $('qbi_sstb').checked=false;
   if($('s_filing')) $('s_filing').value='mfj';
+  if($('s_state')) $('s_state').value='CA';
   $('results').classList.add('hidden');
   if($('docStatus')) $('docStatus').textContent='';
   hideUploadModal();
@@ -1261,6 +1330,7 @@ function hideDownloadModal(){ $('downloadModal').classList.add('hidden'); }
 // Build the printable HTML report used for the PDF.
 function buildReportHtml(){
   const y=TAX.year;
+  const stName=(lastCalc&&lastCalc.ca&&lastCalc.ca.name)?lastCalc.ca.name:'State';
   const filingLabel={mfj:'Married filing jointly',single:'Single',hoh:'Head of household',mfs:'Married filing separately'}[val('s_filing')]||val('s_filing');
   const projTable = $('sourceRows') && $('sourceRows').closest('table') ? $('sourceRows').closest('table').outerHTML : '';
   const css = `body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;max-width:820px;margin:24px auto;padding:0 16px;line-height:1.5}
@@ -1276,11 +1346,11 @@ function buildReportHtml(){
     .breakdown{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:pre;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow-x:auto}`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>Estimated Tax Summary ${y}</title><style>${css}</style></head><body>
     <h1>Estimated Tax Summary &mdash; ${y}</h1>
-    <p class="sub">Filing status: ${filingLabel} &middot; Federal + California &middot; Estimate only, not tax advice.</p>
+    <p class="sub">Filing status: ${filingLabel} &middot; Federal + ${stName} &middot; Estimate only, not tax advice.</p>
     <h2>Projected full year</h2>${projTable}
     <h2>What you need to pay</h2>${$('bottomline').innerHTML}
     <h2>Estimated payment schedule</h2>${$('schedule').innerHTML}
-    <h2>Federal &amp; California</h2><div class="cards"><div class="rc">${$('card_federal').innerHTML}</div><div class="rc">${$('card_ca').innerHTML}</div></div>
+    <h2>Federal &amp; ${stName}</h2><div class="cards"><div class="rc">${$('card_federal').innerHTML}</div><div class="rc">${$('card_ca').innerHTML}</div></div>
     ${$('mexicoBlock') && $('mexicoBlock').innerHTML.trim() ? $('mexicoBlock').innerHTML : ''}
     <h2>Worksheets</h2><div class="breakdown">${$('bd_fed').textContent}</div><br><div class="breakdown">${$('bd_ca').textContent}</div>
     <p class="note" style="margin-top:24px">This is an estimate only and not tax or legal advice. Verify all figures against the IRS, the California FTB, and your own return or advisor. Generated by the Estimated Tax tool.</p>
@@ -1314,29 +1384,33 @@ function buildCsv(){
   if(lc.x && lc.x.prefIncome>0) row('  of which LT gains + qualified dividends (fed preferential)', Math.round(lc.x.prefIncome));
   if(lc.x && lc.x.qbiInfo && lc.x.qbiInfo.deduction>0) row('QBI deduction §199A (federal only)', Math.round(lc.x.qbiInfo.deduction));
   if(lc.x && lc.x.nolFed && lc.x.nolFed.deduction>0) row('NOL carryforward used (federal)', Math.round(lc.x.nolFed.deduction));
-  if(lc.x && lc.x.ssInfo && lc.x.ssInfo.taxable>0) row('Taxable Social Security (CA exempt)', Math.round(lc.x.ssInfo.taxable));
+  if(lc.x && lc.x.ssInfo && lc.x.ssInfo.taxable>0) row('Taxable Social Security (state-exempt)', Math.round(lc.x.ssInfo.taxable));
+  const stShow = lc.ca && !lc.ca.noTax;            // does the selected state levy income tax?
+  const stName = (lc.ca && lc.ca.name) ? lc.ca.name : 'State';
+  row('State', stShow ? stName : (stName + ' — no state income tax'));
   row('');
-  row('', 'Federal', 'California');
-  row('Projected full-year tax', Math.round(lc.fedSH.projectedTax), Math.round(lc.caSH.projectedTax));
-  row('90% of this year', Math.round(lc.fedSH.o90), Math.round(lc.caSH.o90));
-  row('Required (safe harbor)', Math.round(lc.fedSH.required), Math.round(lc.caSH.required));
-  row('Paid in (withholding + estimates)', Math.round(lc.fedSH.withholding), Math.round(lc.caSH.withholding));
-  row('Balance due / (refund)', due(lc.fedSH), due(lc.caSH));
-  row('Shortfall vs safe harbor', Math.round(lc.fedSH.shortfallVsSafe), Math.round(lc.caSH.shortfallVsSafe));
+  if(stShow) row('', 'Federal', stName); else row('', 'Federal');
+  const r2=(label,f,c)=> stShow ? row(label,f,c) : row(label,f);
+  r2('Projected full-year tax', Math.round(lc.fedSH.projectedTax), Math.round(lc.caSH.projectedTax));
+  r2('90% of this year', Math.round(lc.fedSH.o90), Math.round(lc.caSH.o90));
+  r2('Required (safe harbor)', Math.round(lc.fedSH.required), Math.round(lc.caSH.required));
+  r2('Paid in (withholding + estimates)', Math.round(lc.fedSH.withholding), Math.round(lc.caSH.withholding));
+  r2('Balance due / (refund)', due(lc.fedSH), due(lc.caSH));
+  r2('Shortfall vs safe harbor', Math.round(lc.fedSH.shortfallVsSafe), Math.round(lc.caSH.shortfallVsSafe));
   row('');
   const today=new Date(); today.setHours(0,0,0,0);
   const fedSched=estSchedule(y, today, 'fed', lc.fedSH.shortfallVsSafe);
-  const caSched=estSchedule(y, today, 'ca', lc.caSH.shortfallVsSafe);
+  const caSched=stShow?estSchedule(y, today, lc.ca.schedKind||'fed', lc.caSH.shortfallVsSafe):[];
   const map={};
   fedSched.forEach(x=>{ map[x.label]=map[x.label]||{f:0,c:0}; map[x.label].f=x.amount; });
   caSched.forEach(x=>{ map[x.label]=map[x.label]||{f:0,c:0}; map[x.label].c=x.amount; });
   const labels=Object.keys(map).sort((a,b)=> new Date(a)-new Date(b));
   row('Estimated payment schedule (to hit safe harbor)');
-  row('Due date','Federal','California');
-  labels.forEach(l=> row(l, Math.round(map[l].f||0), Math.round(map[l].c||0)));
-  row('Total', Math.round(lc.fedSH.shortfallVsSafe), Math.round(lc.caSH.shortfallVsSafe));
-  if(lc.inp.mxTax>0){ row(''); row('Mexico rental tax (ISR — separate, no US/CA credit)', Math.round(lc.inp.mxTax)); }
-  row(''); row('Estimate only — not tax advice. Verify against the IRS, CA FTB, and (for Mexico) a contador.');
+  if(stShow) row('Due date','Federal',stName); else row('Due date','Federal');
+  labels.forEach(l=> r2(l, Math.round(map[l].f||0), Math.round(map[l].c||0)));
+  r2('Total', Math.round(lc.fedSH.shortfallVsSafe), Math.round(lc.caSH.shortfallVsSafe));
+  if(lc.inp.mxTax>0){ row(''); row('Mexico rental tax (ISR — separate, no US/state credit)', Math.round(lc.inp.mxTax)); }
+  row(''); row('Estimate only — not tax advice. Verify against the IRS, your state tax agency, and (for Mexico) a contador.');
   return R.join('\r\n');
 }
 function downloadCsv(){
@@ -1774,19 +1848,19 @@ function calculate(){
     pyThreshold:TAX.federal.safeHarborPYthreshold, pyThresholdMFS:TAX.federal.safeHarborPYthresholdMFS,
     deMinimis:TAX.federal.deMinimis, isMFS});
 
-  // California: starts from federal AGI but EXCLUDES Social Security; taxes ALL gains/dividends as
-  // ordinary (no preferential rate) and allows NO QBI deduction — so caAgi never sees pref/QBI.
-  const caAgi = modAGIexSS;
-  const caStd=TAX.ca.std[filing]??TAX.ca.std.single;
-  const caBr=TAX.ca.brackets[filing]??TAX.ca.brackets.single;
-  // CA NOL: 80% limit, but suspended for 2024–2026 when income ≥ $1M (SB 167/175).
-  const caNolSuspended = caAgi >= TAX.ca.nol.suspendIncomeThreshold;
-  const nolCa=nolDeduction(inp.nolCf, Math.max(0, caAgi-caStd), TAX.ca.nol.limitPct, caNolSuspended);
-  const ca=californiaTax(caAgi, caStd, caBr, nval('a_ca_exempt'),
-    TAX.ca.mentalHealthThreshold, TAX.ca.mentalHealthRate, nolCa.deduction);
-  const caSH=safeHarbor(ca.tax, inp.pyCa, inp.pyAgi, inp.fyCa + inp.estCa, {
-    pyThreshold:TAX.ca.safeHarborPYthreshold, pyThresholdMFS:TAX.ca.safeHarborPYthresholdMFS,
-    deMinimis:TAX.ca.deMinimis, highIncomeNoPY:TAX.ca.highIncomeNoPY, isMFS});
+  // State income tax (generic, driven by the selected state). State income = federal AGI but it
+  // EXCLUDES Social Security (unless the state taxes it), taxes gains/dividends as ordinary, and
+  // allows NO QBI — so it never sees the federal pref/QBI. California reuses its editable config; the
+  // CA exemption credit comes from the assumptions panel. Other/no-tax states return a $0 result.
+  const stateCode = val('s_state') ?? 'CA';
+  const caExemptOverride = (stateCode==='CA') ? nval('a_ca_exempt') : null;
+  const ca = stateTax(stateCode, modAGIexSS, ssInfo.taxable, cap.preferential, filing, inp.nolCf, caExemptOverride);
+  const nolCa = ca.nol;   // surfaced for the worksheet/steps
+  const caSH = ca.noTax
+    ? safeHarbor(0, 0, 0, 0, {pyThreshold:1e15, pyThresholdMFS:1e15, deMinimis:1e15, isMFS})
+    : safeHarbor(ca.tax, inp.pyCa, inp.pyAgi, inp.fyCa + inp.estCa, {
+        pyThreshold:ca.safeHarbor.pyThreshold, pyThresholdMFS:ca.safeHarbor.pyThresholdMFS,
+        deMinimis:ca.safeHarbor.deMinimis, highIncomeNoPY:ca.safeHarbor.highIncomeNoPY, isMFS});
 
   const x={niit, nii, ssInfo, rentAllow, rentalNet, excessSS, addlMedWithheld, mxTax:inp.mxTax,
     cap, prefIncome, prefInfo, qbiInfo, qbiAmount, isSSTB, nolFed, nolCa};
@@ -1889,8 +1963,10 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   const filingOpts=Object.entries(filingNames).map(([v,n])=>`<option value="${v}"${v===filing?' selected':''}>${n}</option>`).join('');
   $('filingBanner').innerHTML=`<div class="card" style="background:#eff6ff;border-color:#bfdbfe;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:0">
     <div style="flex:0 0 auto"><label>Filing status used for this calculation</label>
-      <select id="filingQuick" style="max-width:280px">${filingOpts}</select></div>
-    <div class="sub" style="flex:1;min-width:220px;padding-bottom:9px">This sets your standard deduction &amp; tax brackets &mdash; everything below updates when you change it. Tax year ${TAX.year}.</div>
+      <select id="filingQuick" style="max-width:260px">${filingOpts}</select></div>
+    <div style="flex:0 0 auto"><label>State</label>
+      <select id="stateQuick" style="max-width:260px">${stateOptionList(ca.code)}</select></div>
+    <div class="sub" style="flex:1;min-width:200px;padding-bottom:9px">Sets your standard deduction, brackets &amp; state tax &mdash; everything below updates when you change them. Tax year ${TAX.year}.</div>
   </div>`;
 
   // projection note + per-source rows
@@ -1912,12 +1988,16 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   $('r_fy_wages').textContent=money(inp.fyWages); $('r_fy_fed').textContent=money(inp.fyFed); $('r_fy_ca').textContent=money(inp.fyCa);
 
   $('card_federal').innerHTML=safeHarborCard('Federal', fedSH, inp.fyFed, inp.estFed, seInfo.tax, addlMed, x.niit, x.excessSS, x.addlMedWithheld);
-  $('card_ca').innerHTML=safeHarborCard('California', caSH, inp.fyCa, inp.estCa, 0, 0, 0, 0, 0);
+  $('card_ca').innerHTML = ca.noTax
+    ? `<h3>${ca.name||'State'} <span class="pill good">No state income tax</span></h3>
+       <div class="big">${money(0)}</div>
+       <div class="sub">No state income tax to estimate. Your federal estimate (left) is what matters.${ca.code===''?' Your state is not added yet — federal-only for now.':''}</div>`
+    : safeHarborCard(ca.name, caSH, inp.fyCa, inp.estCa, 0, 0, 0, 0, 0);
   renderMexico(inp, x);
 
   // bracket-by-bracket math — preceded by how AGI / taxable income are built up
   const fedBr=TAX.federal.brackets[filing]??TAX.federal.brackets.single;
-  const caBr=TAX.ca.brackets[filing]??TAX.ca.brackets.single;
+  if($('stateBracketHdr')) $('stateBracketHdr').textContent = ca.noTax ? `${ca.name} — no state income tax` : `${ca.name} (state)`;
   const otherIncome = inp.fyWages - inp.fyWagesOnly;       // non-wage income folded into fyWages
   const fedSteps=[{label:'Projected full-year wages', amount:inp.fyWagesOnly}];
   if(otherIncome>0) fedSteps.push({label:'+ Other taxable income', amount:otherIncome});
@@ -1960,24 +2040,30 @@ function render(inp, fed, fedSH, ca, caSH, filing, seInfo, addlMed, x){
   if(x.niit>0) fedExtra.push({label:`+ 3.8% net investment income tax (on ${money(x.nii)})`, amount:x.niit});
   if(fedExtra.length) fedExtra.push({label:'= Total federal tax', amount:fedSH.projectedTax, bold:true});
   $('bracket_fed').innerHTML=taxableStepsHTML(fedSteps)+bracketTableHTML(x.prefInfo.ordinary, fedBr, fedExtra.length?fedExtra:null);
-  const caSteps=[{label:'Federal AGI', amount:fed.agi}];
-  if(x.ssInfo.taxable>0) caSteps.push({label:'– Social Security (California does not tax it)', amount:-x.ssInfo.taxable});
-  if(x.nolFed.deduction>0) caSteps.push({label:'+ Federal NOL added back (California figures its own NOL)', amount:x.nolFed.deduction});
-  caSteps.push({label:'= California AGI', amount:ca.caAgi, bold:true});
-  caSteps.push({label:'– CA standard deduction', amount:-ca.std});
-  if(x.nolCa.deduction>0) caSteps.push({label:'– NOL carryforward (CA, 80% limit)', amount:-x.nolCa.deduction});
-  else if(x.nolCa.suspended && inp.nolCf>0) caSteps.push({label:'NOL suspended — CA income ≥ $1M (2024–26)', amount:0});
-  caSteps.push({label:'= CA taxable income', amount:ca.taxable, bold:true});
-  const caExtra=[];
-  if(ca.mentalHealth>0) caExtra.push({label:'+ 1% mental-health surcharge (income over $1M)', amount:ca.mentalHealth});
-  if(ca.exemptionCredit>0) caExtra.push({label:'– exemption credit', amount:-ca.exemptionCredit});
-  caExtra.push({label:'= Final California tax', amount:ca.tax, bold:true});
-  const caDiverges = x.prefIncome>0 || x.qbiInfo.deduction>0;
-  $('bracket_ca').innerHTML=taxableStepsHTML(caSteps)+bracketTableHTML(ca.taxable, caBr, caExtra)
-    + (caDiverges?`<p class="note">California taxes capital gains &amp; dividends as <strong>ordinary income</strong> (no 0/15/20% rate) and allows <strong>no QBI deduction</strong> — which is why the CA taxable income above is higher than the federal figure.</p>`:'');
+  if(ca.noTax){
+    $('bracket_ca').innerHTML = `<p class="note"><strong>${ca.name}</strong> — no state income tax, so there's no state breakdown. Your federal estimate above is what applies${ca.code===''?" (your state isn't added yet — federal-only for now)":''}.</p>`;
+  } else {
+    const stCfg=stateConfig(ca.code);
+    const stBr=(stCfg.brackets&&(stCfg.brackets[filing]||stCfg.brackets.single))||[];
+    const caSteps=[{label:'Federal AGI', amount:fed.agi}];
+    if(x.ssInfo.taxable>0 && !stCfg.taxesSS) caSteps.push({label:`– Social Security (${ca.name} does not tax it)`, amount:-x.ssInfo.taxable});
+    if(x.nolFed.deduction>0) caSteps.push({label:`+ Federal NOL added back (${ca.name} figures its own NOL)`, amount:x.nolFed.deduction});
+    caSteps.push({label:`= ${ca.name} AGI`, amount:ca.caAgi, bold:true});
+    caSteps.push({label:`– ${ca.name} standard deduction`, amount:-ca.std});
+    if(x.nolCa.deduction>0) caSteps.push({label:`– NOL carryforward (${ca.name}, 80% limit)`, amount:-x.nolCa.deduction});
+    else if(x.nolCa.suspended && inp.nolCf>0) caSteps.push({label:`NOL suspended — ${ca.name} income ≥ $1M (2024–26)`, amount:0});
+    caSteps.push({label:`= ${ca.name} taxable income`, amount:ca.taxable, bold:true});
+    const caExtra=[];
+    if(ca.mentalHealth>0) caExtra.push({label:'+ 1% mental-health surcharge (income over $1M)', amount:ca.mentalHealth});
+    if(ca.exemptionCredit>0) caExtra.push({label:'– exemption credit', amount:-ca.exemptionCredit});
+    caExtra.push({label:`= Final ${ca.name} tax`, amount:ca.tax, bold:true});
+    const caDiverges = x.prefIncome>0 || x.qbiInfo.deduction>0;
+    $('bracket_ca').innerHTML=taxableStepsHTML(caSteps)+bracketTableHTML(ca.taxable, stBr, caExtra)
+      + (caDiverges?`<p class="note">${ca.name} taxes capital gains &amp; dividends as <strong>ordinary income</strong> (no 0/15/20% rate) and allows <strong>no QBI deduction</strong> — which is why the state taxable income above is higher than the federal figure.</p>`:'');
+  }
 
-  renderBottomLine(inp, fedSH, caSH);
-  renderSchedule(inp, fedSH, caSH);
+  renderBottomLine(inp, fedSH, caSH, ca);
+  renderSchedule(inp, fedSH, caSH, ca);
 
   $('bd_fed').textContent=fedWorksheet(inp, fed, fedSH, seInfo, addlMed, x);
   $('bd_ca').textContent=caWorksheet(inp, ca, caSH, x);
@@ -2105,25 +2191,28 @@ function renderQbiSummary(inp, x){
   el.innerHTML=html;
 }
 
-function renderBottomLine(inp, fedSH, caSH){
+function renderBottomLine(inp, fedSH, caSH, ca){
   const left=inp.periodsLeft;
-  const totalRefund=fedSH.refund+caSH.refund;
-  const totalShortSafe=fedSH.shortfallVsSafe+caSH.shortfallVsSafe;
-  const totalShortFull=fedSH.shortfallVsFull+caSH.shortfallVsFull;
+  const showState = ca && !ca.noTax;
+  const stAbbr = (ca && ca.code) ? ca.code : 'State';
+  const stName = ca ? ca.name : 'State';
+  const totalRefund=fedSH.refund+(showState?caSH.refund:0);
+  const totalShortSafe=fedSH.shortfallVsSafe+(showState?caSH.shortfallVsSafe:0);
+  const totalShortFull=fedSH.shortfallVsFull+(showState?caSH.shortfallVsFull:0);
   let html='';
 
   // Per-jurisdiction headline (refund vs owe), worded to avoid sign ambiguity.
   const cell=sh=> sh.refund>0
     ? `<td class="num" style="color:#16a34a">${money(sh.refund)} refund</td>`
     : `<td class="num" style="color:#d97706">${money(sh.balanceDue)} due</td>`;
-  html+=`<table><thead><tr><th></th><th>Federal</th><th>California</th></tr></thead><tbody>`;
-  html+=`<tr><td><strong>Projected at filing</strong></td>${cell(fedSH)}${cell(caSH)}</tr>`;
+  html+=`<table><thead><tr><th></th><th>Federal</th>${showState?`<th>${stName}</th>`:''}</tr></thead><tbody>`;
+  html+=`<tr><td><strong>Projected at filing</strong></td>${cell(fedSH)}${showState?cell(caSH):''}</tr>`;
   html+=`</tbody></table>`;
 
   // Adjustment guidance. Per-jurisdiction breakdown of what's still owed at filing.
   const oweParts=[];
   if(fedSH.shortfallVsFull>0) oweParts.push(money(fedSH.shortfallVsFull)+' federal');
-  if(caSH.shortfallVsFull>0) oweParts.push(money(caSH.shortfallVsFull)+' CA');
+  if(showState && caSH.shortfallVsFull>0) oweParts.push(money(caSH.shortfallVsFull)+' '+stAbbr);
   const oweBreakdown = oweParts.length ? ' ('+oweParts.join(' + ')+')' : '';
 
   if(totalShortSafe>0 && left>0){
@@ -2131,7 +2220,7 @@ function renderBottomLine(inp, fedSH, caSH){
     html+=`<div class="note bad"><strong>You're under-withheld.</strong> Across your ${left} remaining paychecks:<br>
       &bull; To avoid the penalty (hit safe harbor): add about <strong>${money(perSafe)}/paycheck</strong> (${money(totalShortSafe)} total).<br>
       &bull; To owe nothing in April (cover 100% of tax): add about <strong>${money(perFull)}/paycheck</strong> (${money(totalShortFull)} total).</div>`;
-    html+=`<p class="note">Add the extra on your <strong>W-4</strong> (federal, line 4c) and CA <strong>DE-4</strong>. Extra withholding counts as paid evenly all year, so it cures earlier-quarter shortfalls — simpler than a late estimated payment.</p>`;
+    html+=`<p class="note">Add the extra on your <strong>W-4</strong> (federal, line 4c)${showState?` and your state withholding form${ca.code==='CA'?' (CA DE-4)':''}`:''}. Extra withholding counts as paid evenly all year, so it cures earlier-quarter shortfalls — simpler than a late estimated payment.</p>`;
   } else if(totalShortSafe>0){
     html+=`<div class="note bad"><strong>You're under the safe harbor with no remaining paychecks to adjust.</strong> Use the <strong>estimated-payment schedule</strong> below to pay the ${money(totalShortSafe)} shortfall${oweBreakdown} and avoid the penalty.</div>`;
   } else if(totalShortFull>0){
@@ -2154,29 +2243,32 @@ function renderBottomLine(inp, fedSH, caSH){
   $('bottomline').innerHTML=html;
 }
 
-function renderSchedule(inp, fedSH, caSH){
+function renderSchedule(inp, fedSH, caSH, ca){
   const today=new Date(); today.setHours(0,0,0,0);
+  const showState = ca && !ca.noTax;
+  const isCA = ca && ca.code==='CA';
+  const stName = ca ? ca.name : 'State';
   // Estimated payments only matter if you're NOT curing it through withholding.
-  const fedDue=fedSH.shortfallVsSafe, caDue=caSH.shortfallVsSafe;
+  const fedDue=fedSH.shortfallVsSafe, caDue=showState?caSH.shortfallVsSafe:0;
   if(fedDue<=0 && caDue<=0){
     $('schedule').innerHTML='<div class="note good">Your projected withholding already meets the safe harbor — no estimated payments required. (You can still send some in if you prefer to pre-pay.)</div>';
     return;
   }
   const fedSched=estSchedule(TAX.year, today, 'fed', fedDue);
-  const caSched=estSchedule(TAX.year, today, 'ca', caDue);
+  const caSched=showState?estSchedule(TAX.year, today, ca.schedKind||'fed', caDue):[];
   // merge by date label
   const map={};
   fedSched.forEach(x=>{ map[x.label]=map[x.label]||{label:x.label,fed:0,ca:0}; map[x.label].fed=x.amount; });
   caSched.forEach(x=>{ map[x.label]=map[x.label]||{label:x.label,fed:0,ca:0}; map[x.label].ca=x.amount; });
   const rows=Object.values(map).sort((a,b)=> new Date(a.label)-new Date(b.label));
-  let html=`<p class="sub">If you choose to make estimated payments instead of (or on top of) extra withholding, this covers the <strong>safe-harbor shortfall</strong>. Federal is 25% per quarter; California is front-loaded 30/40/0/30.</p>`;
-  html+=`<table><thead><tr><th>Due date</th><th>Federal (Form 1040-ES)</th><th>California (Form 540-ES)</th></tr></thead><tbody>`;
+  let html=`<p class="sub">If you choose to make estimated payments instead of (or on top of) extra withholding, this covers the <strong>safe-harbor shortfall</strong>. Federal is 25% per quarter${showState?(isCA?'; California is front-loaded 30/40/0/30':`; ${stName} is typically 25% per quarter (verify your state's schedule)`):''}.</p>`;
+  html+=`<table><thead><tr><th>Due date</th><th>Federal (Form 1040-ES)</th>${showState?`<th>${stName}${isCA?' (Form 540-ES)':''}</th>`:''}</tr></thead><tbody>`;
   for(const r of rows){
-    html+=`<tr><td>${r.label}</td><td class="num">${r.fed>0?money(r.fed):'—'}</td><td class="num">${r.ca>0?money(r.ca):'—'}</td></tr>`;
+    html+=`<tr><td>${r.label}</td><td class="num">${r.fed>0?money(r.fed):'—'}</td>${showState?`<td class="num">${r.ca>0?money(r.ca):'—'}</td>`:''}</tr>`;
   }
-  html+=`<tr style="font-weight:700"><td>Total</td><td class="num">${money(fedDue)}</td><td class="num">${money(caDue)}</td></tr>`;
+  html+=`<tr style="font-weight:700"><td>Total</td><td class="num">${money(fedDue)}</td>${showState?`<td class="num">${money(caDue)}</td>`:''}</tr>`;
   html+=`</tbody></table>`;
-  html+=`<p class="note">Pay federal at <strong>irs.gov/payments</strong> (Direct Pay) and California at <strong>ftb.ca.gov</strong> (Web Pay). Dates already passed are dropped and their share rolled into the next due date.</p>`;
+  html+=`<p class="note">Pay federal at <strong>irs.gov/payments</strong> (Direct Pay)${showState?(isCA?` and California at <strong>ftb.ca.gov</strong> (Web Pay)`:` and your state's tax agency online`):''}. Dates already passed are dropped and their share rolled into the next due date.</p>`;
   $('schedule').innerHTML=html;
 }
 
@@ -2275,22 +2367,27 @@ function fedWorksheet(inp, fed, sh, seInfo, addlMed, x){
 }
 function caWorksheet(inp, ca, sh, x){
   x=x||{ssInfo:{taxable:0}, prefIncome:0, qbiInfo:{deduction:0}, nolCa:{deduction:0,suspended:false}};
-  const L=[];
-  L.push('CALIFORNIA — projected '+TAX.year+' (latest published schedule)');
+  const L=[]; const N=ca.name||'State'; const pad=s=>s.padEnd(38);
+  if(ca.noTax){
+    L.push(N.toUpperCase()+' — no state income tax');
+    L.push('────────────────────────────────────────');
+    L.push('No state income tax to estimate for '+N+'. Your federal estimate is what applies.');
+    if(ca.code==='') L.push("(Your state isn't added to the tool yet — federal-only for now.)");
+    return L.join('\n');
+  }
+  L.push(N.toUpperCase()+' — projected '+TAX.year+' (latest published schedule)');
   L.push('────────────────────────────────────────');
-  if(x.ssInfo && x.ssInfo.taxable>0)
-    L.push('(Social Security '+money2(x.ssInfo.taxable)+' excluded — CA does not tax it)');
-  if(x.prefIncome>0 || (x.qbiInfo&&x.qbiInfo.deduction>0))
-    L.push('(CA taxes capital gains & dividends as ordinary; NO QBI deduction)');
-  L.push('CA AGI (all income, ordinary)        '+money2(ca.caAgi));
-  L.push('Less CA standard deduction           -'+money2(ca.std));
-  if(x.nolCa && x.nolCa.deduction>0) L.push('Less NOL carryforward (CA, 80% limit) -'+money2(x.nolCa.deduction));
-  else if(x.nolCa && x.nolCa.suspended && inp.nolCf>0) L.push('NOL suspended (CA income ≥ $1M, 2024–26)');
-  L.push('CA taxable income                    '+money2(ca.taxable));
-  L.push('CA tax (brackets)                    '+money2(ca.taxBeforeCredit));
+  if(x.ssInfo && x.ssInfo.taxable>0) L.push('(Social Security '+money2(x.ssInfo.taxable)+' excluded — '+N+' does not tax it)');
+  if(x.prefIncome>0 || (x.qbiInfo&&x.qbiInfo.deduction>0)) L.push('('+N+' taxes capital gains & dividends as ordinary; NO QBI deduction)');
+  L.push(pad(N+' AGI (all income, ordinary)')+money2(ca.caAgi));
+  L.push(pad('Less '+N+' standard deduction')+'-'+money2(ca.std));
+  if(x.nolCa && x.nolCa.deduction>0) L.push(pad('Less NOL carryforward (80% limit)')+'-'+money2(x.nolCa.deduction));
+  else if(x.nolCa && x.nolCa.suspended && inp.nolCf>0) L.push('NOL suspended ('+N+' income ≥ $1M, 2024–26)');
+  L.push(pad(N+' taxable income')+money2(ca.taxable));
+  L.push(pad(N+' tax (brackets)')+money2(ca.taxBeforeCredit));
   if(ca.mentalHealth>0) L.push('  incl. 1% mental-health surcharge   '+money2(ca.mentalHealth));
-  L.push('Less exemption credit                -'+money2(ca.exemptionCredit));
-  L.push('CA income tax                        '+money2(ca.tax));
+  if(ca.exemptionCredit>0) L.push(pad('Less exemption credit')+'-'+money2(ca.exemptionCredit));
+  L.push(pad(N+' income tax')+money2(ca.tax));
   L.push('');
   L.push('SAFE HARBOR — required = SMALLER of:');
   L.push('  90% of this year   = 0.90 × '+money2(sh.projectedTax)+' = '+money2(sh.o90));
@@ -2301,16 +2398,16 @@ function caWorksheet(inp, ca, sh, x){
   } else L.push('  100%/110% of last year = (enter last year’s tax to use this)');
   L.push('  → Required = '+money2(sh.required)+'  ('+sh.controllingLabel+')');
   L.push('');
-  L.push('Projected CA withholding              '+money2(inp.fyCa));
+  L.push(pad('Projected '+N+' withholding')+money2(inp.fyCa));
   if(inp.estCa>0){
-    L.push('Estimated payments already made       '+money2(inp.estCa));
-    L.push('Total paid in                         '+money2(sh.withholding));
+    L.push(pad('Estimated payments already made')+money2(inp.estCa));
+    L.push(pad('Total paid in')+money2(sh.withholding));
   }
-  L.push(sh.refund>0?('Projected REFUND                      '+money2(sh.refund))
-                    :('Projected balance due                 '+money2(sh.balanceDue)));
-  L.push('Shortfall vs safe harbor              '+money2(sh.shortfallVsSafe));
+  L.push(sh.refund>0?(pad('Projected REFUND')+money2(sh.refund)) : (pad('Projected balance due')+money2(sh.balanceDue)));
+  L.push(pad('Shortfall vs safe harbor')+money2(sh.shortfallVsSafe));
   if(sh.refund<=0 && sh.deMinimis) L.push('Under '+money2(sh.deMinimisThreshold)+' → no penalty regardless.');
-  L.push('CA installments: 30% Apr15 / 40% Jun15 / 0% Sep / 30% Jan15.');
+  L.push(ca.code==='CA' ? 'CA installments: 30% Apr15 / 40% Jun15 / 0% Sep / 30% Jan15.'
+                        : N+' installments: typically 25% per quarter (verify your state).');
   return L.join('\n');
 }
 
@@ -2424,14 +2521,18 @@ function submitLead(){
    WIRING
    ===================================================================== */
 populateYears();
+populateStates();
 applyYearLabels();
 seedAssumptions();
 showReminderDates();
 $('s_year').addEventListener('change', e=> setActiveYear(+e.target.value));
 $('s_filing').addEventListener('change', ()=>{ seedCaExempt(); formatInput($('a_ca_exempt')); });
-// The filing selector shown on the results mirrors Step 2 and recalculates immediately.
+// The filing & state selectors shown on the results mirror Step 2 and recalculate immediately.
 document.addEventListener('change', e=>{ if(e.target.id==='filingQuick'){
   $('s_filing').value=e.target.value; seedCaExempt(); formatInput($('a_ca_exempt')); calculate();
+}});
+document.addEventListener('change', e=>{ if(e.target.id==='stateQuick'){
+  $('s_state').value=e.target.value; calculate();
 }});
 // one uploader for everything (paystubs/W-2s + last year's 1040/540)
 (()=>{ const dz=$('docDz'), fi=$('docFile');

@@ -2,6 +2,23 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Generalize to a state-driven engine + state selector (step 1 of multi-state)
+- **Files:** `index.html`.
+- **Why:** the tool is being marketed nationwide; it was California-only and showed CA numbers to everyone.
+- **What (step 1):** Replaced `californiaTax()` with a generic `STATES` registry + `stateTax()` engine.
+  California reuses its existing editable, year-keyed `TAX.ca` block via getters (so CA is byte-identical).
+  Added a **state selector** (Step 2 + a quick-select on the results banner), seeded with California, the
+  9 no-income-tax states, and an "Other / not added yet (federal only)" option. Non-CA/no-tax selections show
+  a clean "no state income tax" result and federal-only — fixing the bug where everyone saw California tax.
+  All state-facing render/worksheet/CSV/PDF labels are now dynamic (state name, no-tax branch). The state base
+  is the PRE-federal-NOL non-SS income (states figure their own NOL) — caught/fixed during the refactor.
+- **Verification:** 49/49 self-tests pass. CA regression byte-identical (MFJ $80k → AGI 80000 / fed 5240 / CA 1173 /
+  CA taxable 68588; demo CA taxable 205352). Texas/Other → $0 state, federal unchanged ($231,458/$43,635 across switch).
+  No console errors. (A JS parse error from an over-escaped apostrophe was caught in verification and fixed.)
+- **Next (step 3):** populate the ~41 income-tax states from the gathered 2026/latest figures (research done),
+  verify per state, adversarial review, ship. Engine already supports flat/progressive brackets, SS taxation,
+  cap-gains exclusions, surtaxes, and state NOL via the STATES config.
+
 ## 2026-06-23 - Make the public page self-contained / unbranded for direct sharing
 - **Files:** `.vercelignore`, `index.html`.
 - **Why:** Jessica wants to share the bare `estimated-taxes.vercel.app` link (e.g. on LinkedIn) with NO route to the
