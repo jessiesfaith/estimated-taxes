@@ -387,7 +387,7 @@
     <summary id="assumeTitle" class="collapse-head">2026 federal &amp; California figures used</summary>
     <div style="margin-top:10px">
       <table class="assume">
-        <thead><tr><th id="assumeStdHdr">Standard deduction (2026)</th><th>Federal</th><th>California</th></tr></thead>
+        <thead><tr><th id="assumeStdHdr">Standard deduction (2026)</th><th>Federal</th><th id="a_state_hdr">California</th></tr></thead>
         <tbody>
           <tr><td>Single / MFS</td><td><input class="num money" id="a_fed_std_single"></td><td><input class="num money" id="a_ca_std_single"></td></tr>
           <tr><td>Married filing jointly</td><td><input class="num money" id="a_fed_std_mfj"></td><td><input class="num money" id="a_ca_std_mfj"></td></tr>
@@ -395,14 +395,13 @@
         </tbody>
       </table>
       <div class="grid" style="margin-top:10px">
-        <div class="row"><label>CA exemption credit (per return)</label><input class="num money" id="a_ca_exempt"></div>
+        <div class="row" id="a_ca_exempt_row"><label>CA exemption credit (per return)</label><input class="num money" id="a_ca_exempt"></div>
         <div class="row"><label>Federal "high income" 110% AGI threshold</label><input class="num money" id="a_fed_110thr"></div>
-        <div class="row"><label>CA "high income" 110% AGI threshold</label><input class="num money" id="a_ca_110thr"></div>
+        <div class="row" id="a_ca_110_row"><label>CA "high income" 110% AGI threshold</label><input class="num money" id="a_ca_110thr"></div>
       </div>
       <p class="note" style="margin-top:10px">
         <strong>Federal</strong> brackets &amp; standard deductions: IRS Rev. Proc. 2025-32 (2026 tax year).
-        <strong>California</strong>: latest published FTB rate schedule &amp; standard deduction (2025 tax year) used as a 2026 proxy &mdash; CA publishes official 2026 brackets later in the year; replace with exact figures when available.
-        Safe-harbor rules: IRS &sect;6654 and CA FTB Form 540-ES instructions.
+        <span id="a_state_src_note"><strong>California</strong>: latest published FTB rate schedule &amp; standard deduction (2025 tax year) used as a 2026 proxy &mdash; CA publishes official 2026 brackets later in the year; replace with exact figures when available. Safe-harbor rules: IRS &sect;6654 and CA FTB Form 540-ES instructions.</span>
       </p>
     </div>
   </details>
@@ -935,10 +934,41 @@ function seedAssumptions(){
 function readAssumptions(){
   TAX.federal.std.single=nval('a_fed_std_single'); TAX.federal.std.mfs=nval('a_fed_std_single');
   TAX.federal.std.mfj=nval('a_fed_std_mfj'); TAX.federal.std.hoh=nval('a_fed_std_hoh');
-  TAX.ca.std.single=nval('a_ca_std_single'); TAX.ca.std.mfs=nval('a_ca_std_single');
-  TAX.ca.std.mfj=nval('a_ca_std_mfj'); TAX.ca.std.hoh=nval('a_ca_std_hoh');
   TAX.federal.safeHarborPYthreshold=nval('a_fed_110thr');
-  TAX.ca.safeHarborPYthreshold=nval('a_ca_110thr');
+  // The state column is editable ONLY for California; for other states it shows read-only built-in
+  // figures, so don't let it overwrite TAX.ca.
+  if(val('s_state')==='CA'){
+    TAX.ca.std.single=nval('a_ca_std_single'); TAX.ca.std.mfs=nval('a_ca_std_single');
+    TAX.ca.std.mfj=nval('a_ca_std_mfj'); TAX.ca.std.hoh=nval('a_ca_std_hoh');
+    TAX.ca.safeHarborPYthreshold=nval('a_ca_110thr');
+  }
+}
+// Make the Assumptions panel reflect the selected state: title, column header, the state std-deduction
+// column (editable for CA, read-only built-in figures for other states), CA-only rows, and the source note.
+function updateAssumptionsForState(){
+  const code=val('s_state'); const S=STATES[code]||STATES[''];
+  const name=S.name||'State';
+  if($('assumeTitle')) $('assumeTitle').textContent=TAX.year+' federal & '+(S.code?name:'state')+' figures used';
+  if($('a_state_hdr')) $('a_state_hdr').textContent=(S.noTax&&!S.code)?'State':name;
+  const stdMap={a_ca_std_single:'single', a_ca_std_mfj:'mfj', a_ca_std_hoh:'hoh'};
+  const caRows=[$('a_ca_exempt_row'), $('a_ca_110_row')];
+  const note=$('a_state_src_note');
+  if(code==='CA'){
+    Object.keys(stdMap).forEach(id=>{ if($(id)) $(id).removeAttribute('readonly'); });
+    $('a_ca_std_single').value=TAX.ca.std.single; $('a_ca_std_mfj').value=TAX.ca.std.mfj; $('a_ca_std_hoh').value=TAX.ca.std.hoh;
+    seedCaExempt(); $('a_ca_110thr').value=TAX.ca.safeHarborPYthreshold;
+    caRows.forEach(r=>{ if(r) r.style.display=''; });
+    if(note) note.innerHTML='<strong>California</strong>: latest published FTB rate schedule &amp; standard deduction (2025 tax year) used as a 2026 proxy — replace with exact figures when CA publishes them. Safe-harbor: IRS &sect;6654 &amp; CA FTB Form 540-ES.';
+  } else {
+    caRows.forEach(r=>{ if(r) r.style.display='none'; });
+    Object.keys(stdMap).forEach(id=>{ const el=$(id); if(!el) return;
+      el.value = S.noTax ? '0' : ((S.std&&(S.std[stdMap[id]]??S.std.single))||0);
+      el.setAttribute('readonly','readonly'); });
+    if(note) note.innerHTML = S.noTax
+      ? '<strong>'+name+'</strong>: no state income tax.'
+      : '<strong>'+name+'</strong>: standard deduction &amp; rates are from the state’s tax agency (2026 or latest-published figures) and are <strong>subject to change</strong> — not editable here; see the rate breakdown above. State estimated-payment rules vary.';
+  }
+  formatAll();
 }
 
 /* =====================================================================
@@ -2547,15 +2577,18 @@ populateYears();
 populateStates();
 applyYearLabels();
 seedAssumptions();
+updateAssumptionsForState();
 showReminderDates();
-$('s_year').addEventListener('change', e=> setActiveYear(+e.target.value));
+$('s_year').addEventListener('change', e=> { setActiveYear(+e.target.value); updateAssumptionsForState(); });
 $('s_filing').addEventListener('change', ()=>{ seedCaExempt(); formatInput($('a_ca_exempt')); });
+// Changing the state in Step 2 updates the assumptions panel and, if results are showing, recomputes.
+$('s_state').addEventListener('change', ()=>{ updateAssumptionsForState(); if(!$('results').classList.contains('hidden')) calculate(); });
 // The filing & state selectors shown on the results mirror Step 2 and recalculate immediately.
 document.addEventListener('change', e=>{ if(e.target.id==='filingQuick'){
   $('s_filing').value=e.target.value; seedCaExempt(); formatInput($('a_ca_exempt')); calculate();
 }});
 document.addEventListener('change', e=>{ if(e.target.id==='stateQuick'){
-  $('s_state').value=e.target.value; calculate();
+  $('s_state').value=e.target.value; updateAssumptionsForState(); calculate();
 }});
 // one uploader for everything (paystubs/W-2s + last year's 1040/540)
 (()=>{ const dz=$('docDz'), fi=$('docFile');

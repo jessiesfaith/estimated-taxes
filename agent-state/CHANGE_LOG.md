@@ -2,6 +2,16 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - State change recomputes the form + state-aware Assumptions panel
+- Selecting a state in the Step-2 dropdown now recomputes the results immediately (was: required a Calculate click;
+  only the results-banner selector auto-recalced).
+- Assumptions panel is now state-aware: title, the "California" column header, and the source note follow the selected
+  state; the state std-deduction column shows that state's built-in figures (read-only) for non-CA and the FTB/CA-only
+  rows (exemption credit, CA 110% threshold) are hidden; California stays fully editable. `readAssumptions()` is guarded
+  to only write `TAX.ca` when California is selected (so a non-CA state's read-only figures can't corrupt CA's config).
+- Verified: CA→NY→TX→CA switching updates result card + tax + panel correctly; CA byte-identical (MFJ $80k → $1,173);
+  49/49 self-tests; no console errors.
+
 ## 2026-06-23 - Clean + handoff
 - Removed dead constant (`mexico.mxnPerUsd`, unused). Updated copy: header "Federal + all 50 states", Step-2 state
   note, and the disclaimer (state estimates approximate; no local/city taxes / some state items not modeled).
