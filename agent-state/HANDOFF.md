@@ -48,6 +48,10 @@ Covers, for **federal + all 50 states + DC**:
 - **Disclaimer** leads with: state rates are from each state's tax agency and **subject to change**; everything is an
   **estimate only and may not be correct** — verify with the IRS + your state's tax site.
 - Public page is **self-contained & unbranded** (no Fast Insights links/branding; repo docs not served — see below).
+- **Privacy:** the page states (banner at top + footer disclaimer + header tag) that there is **no server/database**,
+  nothing is uploaded/stored online, typed figures aren't saved (gone on close/refresh), and clearing browser data wipes
+  anything local. This is **accurate**: the ONLY persistence is `localStorage` key `fi_estimated_tax_templates_v1`
+  (`rememberEmployer()` saves `{employer, freq, mode}` — never amounts); no `fetch`/XHR/beacon; lead form is cosmetic.
 
 ## Architecture (where things live in index.html)
 - **Tax constants:** `TAX_BY_YEAR[2026]` (federal + `ca` blocks); roll a new year by copying the block.

@@ -2,6 +2,16 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Add explicit privacy statement (no server / no database; client-side only)
+- Green **privacy banner** at the top of the page + a reinforcing line in the footer `.disclaimer` + a "100% private"
+  tag in the header subtitle: no server/database, nothing uploaded or stored online, the figures you type are not saved
+  (gone on close/refresh), and clearing browser data wipes anything kept locally.
+- **Accurate caveat** (expandable "What about 'Remember this employer's layout'?"): the only persisted data is the
+  `localStorage` template `{employer, freq, mode}` written by `rememberEmployer()` (`LS_KEY='fi_estimated_tax_templates_v1'`)
+  — never dollar amounts/wages/tax figures. Verified: that is the ONLY `localStorage` use; no `fetch`/XHR/beacon/WebSocket
+  anywhere; the lead form is cosmetic (nothing sent).
+- Verified in-browser: banner renders above Step 1, header + footer text present, no console errors.
+
 ## 2026-06-23 - Add in-app Field Guide (right-pane: per-field broad / example / granular detail)
 - New slide-in RIGHT pane, opened by a "Field guide" header button + a floating button. Covers all **75 fields across
   11 sections**; each entry = a broad one-liner ("what goes here") + a green example + an expandable "More detail"
