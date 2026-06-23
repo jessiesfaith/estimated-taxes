@@ -2,6 +2,13 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Clean + handoff
+- Removed dead constant (`mexico.mxnPerUsd`, unused). Updated copy: header "Federal + all 50 states", Step-2 state
+  note, and the disclaimer (state estimates approximate; no local/city taxes / some state items not modeled).
+- Refreshed `HANDOFF.md` (full architecture + maintenance map), `CURRENT_STATE.md`, `CLAUDE.md` (was stale at "W-2 only").
+- Removed OS-temp scratch scripts used to generate/inject/fix the state data (outside the repo).
+- Verified: 49/49 self-tests pass, demo + Mexico ISR intact, no console errors. Shipped via git push (auto-deploy).
+
 ## 2026-06-23 - Populate all 50 states + DC (multi-state step 3)
 - **Files:** `index.html` (added a `STATE_DATA` block + `buildStates()` loader after the STATES registry).
 - **What:** All 50 states + DC now have a state estimate. Figures (brackets, std deduction, exemptions, SS taxation,

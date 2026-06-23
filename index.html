@@ -540,7 +540,7 @@ const TAX_BY_YEAR = {
   // method is a flat rate on GROSS rent with no deductions (IVA on commercial rent is
   // separate and not modeled). Editable in the Mexico section. Resident/RFC filers may
   // instead pay progressive ISR on net rent — choose "I'll enter the amount" for that.
-  mexico: { rentalGrossRate:0.25, mxnPerUsd:18 }
+  mexico: { rentalGrossRate:0.25 }
   }),
 };
 const AVAILABLE_YEARS = Object.keys(TAX_BY_YEAR).map(Number).sort((a,b)=>a-b);

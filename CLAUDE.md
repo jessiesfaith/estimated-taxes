@@ -3,12 +3,16 @@
 Generic workflow rules live in `~/.claude/CLAUDE.md` (they apply to every repo). This file holds
 **repo-specific facts only**. Source of truth = this repo + `agent-state/*.md`, not the chat transcript.
 
-## Repo facts (verified 2026-06-07)
-- **What:** Single-page static tool -- "W-2 Estimated Tax & Safe-Harbor Tool". Helps a W-2 earner
-  estimate annual/quarterly federal tax and safe-harbor thresholds. All client-side; no accounts.
+## Repo facts (verified 2026-06-23)
+- **What:** Single-page static estimated-tax & safe-harbor tool. Now covers **federal + all 50 states + DC** and
+  many income types: W-2/paystub, 1099 self-employment, Social Security, investment income (interest/dividends/cap
+  gains with preferential LTCG/QDI rates), passive rental (US + Mexico ISR), Schedule K-1, plus QBI, NIIT, addl
+  Medicare, and NOL carryforward. Generic state engine (`STATES` + `STATE_DATA`/`buildStates`). All client-side; no
+  accounts; nothing uploaded. Public page is self-contained/unbranded. **See `agent-state/HANDOFF.md` for the full map.**
 - **Package manager / framework:** none. Vanilla HTML/CSS/JS, no `package.json`, no build step.
-- **Key file:** `index.html` (~101 KB -- the entire tool: inlined CSS + JS).
-- **Dev (localhost):** `python -m http.server 8000` -> http://localhost:8000 (run from repo root).
+- **Key file:** `index.html` (~195 KB -- the entire tool: inlined CSS + JS + state data). Verify edits with the
+  in-app **Run self-test** button (49 cases).
+- **Dev (localhost):** `npx http-server . -p 8124` (python is not installed on this machine) -> http://localhost:8124.
 - **Build / test / lint / typecheck:** none configured. Verification = manual + URL check.
 - **Git:** branch `main`, remote `origin` = **github.com/jessiesfaith/estimated-taxes** (public).
   Pushed via SSH host alias `github-jessica` (key `~/.ssh/jessiesfaith_ed25519`); the repo's

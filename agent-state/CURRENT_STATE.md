@@ -1,16 +1,17 @@
 # CURRENT_STATE - Estimated Taxes (W-2 Estimated Tax & Safe-Harbor Tool)
 
-_Last updated: 2026-06-22_
+_Last updated: 2026-06-23_
 
 ## Purpose
-Single-page static tool that estimates a W-2 earner's federal income tax and **safe-harbor** payment
-thresholds (to avoid underpayment penalties). Fully client-side; no backend, no accounts, no data
-leaves the browser.
+Single-page static tool that estimates **federal + all-50-states (+ DC)** income tax and **safe-harbor**
+payment thresholds (to avoid underpayment penalties), across many income types (wages, 1099/SE, Social
+Security, investment income, rental incl. Mexico, K-1, with QBI/NIIT/NOL). Fully client-side; no backend,
+no accounts, no data leaves the browser. **Full map: `agent-state/HANDOFF.md`.**
 
 ## Stack
 - **Framework:** none (vanilla HTML/CSS/JS).
 - **Package manager:** none (no `package.json`).
-- **Key file:** `index.html` (~101 KB - the entire tool).
+- **Key file:** `index.html` (~195 KB - the entire tool, incl. inlined 50-state data). Verify with the in-app self-test.
 
 ## Commands
 | Purpose | Command |
