@@ -206,15 +206,17 @@
 <div class="privacy-banner" id="privacyBanner">
   <span class="pb-icon" aria-hidden="true">&#128274;</span>
   <div>
-    <strong>Private by design &mdash; your data never leaves your device.</strong>
-    This tool has <strong>no server and no database</strong>, so nothing you enter is uploaded or stored online.
-    Every calculation runs in your browser, and the figures you type <strong>are not saved</strong> &mdash; close or
-    refresh the page and they are gone, and clearing your browser history/data wipes anything kept on your computer.
+    <strong>Private by design.</strong> Your tax numbers never leave your device &mdash; the calculator runs entirely in
+    your browser, nothing you type is uploaded or stored, and it's gone when you close the tab. <strong>The only thing we
+    ever save is your email</strong> (and phone, if you add it) &mdash; and only if you sign up for due-date reminders or updates.
     <details>
-      <summary>What about &ldquo;Remember this employer&rsquo;s layout&rdquo;?</summary>
-      <p class="pb-more">The only thing optionally kept on your computer is a remembered employer&rsquo;s <em>name and
-      pay-frequency / mode setting</em> &mdash; <strong>never any dollar amounts, wages, or tax figures</strong>. It lives
-      only in this browser and is removed when you clear your browser data. Nothing is ever sent anywhere.</p>
+      <summary>What exactly is &amp; isn&rsquo;t saved?</summary>
+      <p class="pb-more"><strong>Saved (only if you opt in):</strong> the email/phone you enter in the reminders form &mdash; used
+      to send the due-date reminders &amp; updates you check, from info@fastinsights.io; never sold or shared, opt out anytime.
+      <br><strong>Never saved:</strong> any income, withholding, or tax figures you enter &mdash; those stay in your browser only.
+      <br><strong>Analytics:</strong> we may track anonymous, aggregate usage (page visits &amp; clicks) to see how the tool is
+      used &mdash; never your personal or tax data.
+      <br><strong>This browser only:</strong> an optional &ldquo;remembered&rdquo; employer layout (name + pay-frequency, never amounts).</p>
     </details>
   </div>
 </div>
@@ -441,22 +443,24 @@
 <!-- ============================ CTA / LEAD CAPTURE ============================ -->
 <section class="card cta" id="reminders">
   <h2>Never miss a quarterly payment &mdash; free reminders</h2>
-  <p class="sub">We'll <strong>email and text you every day</strong> in the run-up to each estimated-tax due date so you never miss it. Rather hand it off? Ask a CPA to review or file for you.</p>
+  <p class="sub">Get a heads-up before each estimated-tax due date so a deadline never sneaks up on you. Rather hand it off? Ask a CPA to review or file for you.</p>
   <div id="leadForm">
   <div class="grid">
     <div class="row"><label>First name</label><input id="lead_first"></div>
-    <div class="row"><label>Last name</label><input id="lead_last"></div>
+    <div class="row"><label>Last name (optional)</label><input id="lead_last"></div>
     <div class="row"><label>Email</label><input id="lead_email" type="email" inputmode="email"></div>
-    <div class="row"><label>Mobile phone (for text reminders)</label><input id="lead_phone" type="tel" inputmode="tel"></div>
+    <div class="row"><label>Mobile phone &mdash; optional, for text reminders</label><input id="lead_phone" type="tel" inputmode="tel"></div>
   </div>
-  <label class="checkrow"><input type="checkbox" id="lead_remind" checked> Email + text me every day until each quarterly due date</label>
+  <label class="checkrow"><input type="checkbox" id="lead_remind" checked> Email me when my quarterly estimated-tax payments are due</label>
+  <label class="checkrow"><input type="checkbox" id="lead_sms"> Also text me the reminders (add a phone above &mdash; standard rates may apply)</label>
+  <label class="checkrow"><input type="checkbox" id="lead_marketing"> Send me occasional Fast Insights tips &amp; product updates (opt out anytime)</label>
   <label class="checkrow"><input type="checkbox" id="lead_cpa"> I'd like a CPA to review or file my return</label>
   <div id="lead_dates" class="note" style="margin:8px 0"></div>
   <div class="controls">
-    <button class="btn" id="leadBtn">Get Reminders &rarr;</button>
+    <button class="btn" id="leadBtn">Get reminders &rarr;</button>
     <span id="leadMsg" class="statusmsg" style="margin:0"></span>
   </div>
-  <p class="note">Free. Your info is used only for the reminders / help you ask for. Standard text rates may apply.</p>
+  <p class="note">Free. We save the email (and phone, if you add it) <strong>only</strong> to send the reminders &amp; updates you check above &mdash; sent from info@fastinsights.io, never sold or shared, opt out anytime. Standard text rates may apply.</p>
   </div>
 </section>
 
@@ -489,10 +493,10 @@
 </section>
 
 <p class="disclaimer">
-  <strong>&#128274; Privacy:</strong> nothing you enter is uploaded or stored online &mdash; there is no server or database
-  behind this tool. All calculations run in your browser; your figures are gone when you close or refresh the page, and
-  clearing your browser data removes anything kept locally (only an optional remembered employer layout &mdash; never any
-  amounts). <br>
+  <strong>&#128274; Privacy:</strong> your tax figures are never uploaded or stored &mdash; the calculator runs in your
+  browser and clears when you close the page. The only data we save is the email/phone you give the reminders form (and
+  only if you opt in), used to send due-date reminders &amp; updates from info@fastinsights.io &mdash; never sold or shared.
+  We may track anonymous, aggregate usage (clicks/visits), never personal or tax data. <br>
   <strong>State rates and brackets are sourced from each state's tax agency and are subject to change</strong> (states update them
   through the year). Everything here is <strong>an estimate only and may not be correct</strong> &mdash; confirm against the IRS
   and your state's tax site before you pay or file.<br>
@@ -2685,15 +2689,12 @@ function selfTest(){
 }
 
 /* =====================================================================
-   LEAD CAPTURE  (DEMO — cosmetic only)
-   ---------------------------------------------------------------------
-   This form looks and behaves like the real thing but does NOT send or
-   store anything yet. The real build is DEFERRED: capture leads and then
-   email + text the user every day until each due date. When ready, route
-   leads to BUSINESS_EMAIL (or a Formspree/webhook) and send the daily
-   reminders from a backend (e.g. Supabase + an email/SMS service).
+   LEAD CAPTURE — wired to Formspree (delivers to info@fastinsights.io).
+   Saves only the email/phone the user opts in with, so we can send the
+   due-date reminders + updates they check. Calculator data is NEVER sent.
    ===================================================================== */
-const BUSINESS_EMAIL = 'hello@jessicadougherty.com';   // lead destination — set the real inbox when wiring up lead capture
+const LEAD_ENDPOINT = 'https://formspree.io/f/mnjrbgzp';   // Fast Insights Formspree form -> info@fastinsights.io
+const BUSINESS_EMAIL = 'info@fastinsights.io';             // reminders sent from / signups land here
 
 function fmtDate(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 // Quarterly estimated-tax due dates for the tax year that are still upcoming.
@@ -2706,15 +2707,35 @@ function upcomingDueDates(){
 function showReminderDates(){
   const due=upcomingDueDates();
   $('lead_dates').innerHTML = due.length
-    ? 'We’ll email and text you every day leading up to each due date: <strong>'+due.map(fmtDate).join(' · ')+'</strong>.'
+    ? 'We’ll email you before each due date: <strong>'+due.map(fmtDate).join(' · ')+'</strong>.'
     : 'This year’s quarterly due dates have passed — sign up to be ready for next year.';
 }
-function submitLead(){
+async function submitLead(){
   const first=val('lead_first').trim(), last=val('lead_last').trim(), email=val('lead_email').trim();
-  if(!first||!last||!email){ $('leadMsg').innerHTML='<span style="color:#dc2626">Please add your first name, last name, and email.</span>'; return; }
-  // DEMO: cosmetic confirmation only — nothing is sent or stored yet.
-  const due=upcomingDueDates().map(fmtDate).join(', ');
-  $('leadMsg').innerHTML=`<span style="color:#16a34a">Thanks, ${first}! You're signed up — we'll email and text you every day until ${due||'your next due date'}.</span>`;
+  if(!first || !email){ $('leadMsg').innerHTML='<span style="color:#dc2626">Please add your first name and email.</span>'; return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ $('leadMsg').innerHTML='<span style="color:#dc2626">That email doesn’t look right — mind checking it?</span>'; return; }
+  const phone=val('lead_phone').trim();
+  const wantsSms = $('lead_sms') && $('lead_sms').checked && !!phone;
+  const payload = {
+    name:(first+' '+last).trim(), email, phone,
+    dueDateReminders: ($('lead_remind') && $('lead_remind').checked) ? 'yes' : 'no',
+    textReminders: wantsSms ? 'yes' : 'no',
+    marketingOptIn: ($('lead_marketing') && $('lead_marketing').checked) ? 'yes' : 'no',
+    cpaInterest: ($('lead_cpa') && $('lead_cpa').checked) ? 'yes' : 'no',
+    source: 'estimated-taxes tool', _subject: 'New estimated-tax reminder signup'
+  };
+  $('leadMsg').innerHTML='<span style="color:#64748b">Signing you up…</span>';
+  try{
+    const r = await fetch(LEAD_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify(payload) });
+    if(!r.ok) throw new Error('status '+r.status);
+    const due=upcomingDueDates().map(fmtDate).join(', ');
+    $('leadMsg').innerHTML=`<span style="color:#16a34a">Thanks, ${first}! You're on the list — we'll email you before ${due||'each due date'}.</span>`;
+    ['lead_first','lead_last','lead_email','lead_phone'].forEach(id=>{ if($(id)) $(id).value=''; });
+  }catch(e){
+    const sub=encodeURIComponent('Estimated-tax reminder signup');
+    const body=encodeURIComponent('Name: '+payload.name+'\nEmail: '+email+'\nPhone: '+phone+'\nDue-date reminders: '+payload.dueDateReminders+'\nText: '+payload.textReminders+'\nUpdates: '+payload.marketingOptIn+'\nCPA: '+payload.cpaInterest);
+    $('leadMsg').innerHTML=`<span style="color:#d97706">Couldn’t submit just now — <a href="mailto:${BUSINESS_EMAIL}?subject=${sub}&body=${body}" style="color:#2563eb">click here to email us</a> and we’ll add you.</span>`;
+  }
 }
 
 /* =====================================================================

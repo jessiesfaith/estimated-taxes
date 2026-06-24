@@ -2,6 +2,23 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-23 - Reminders signup wired LIVE (Formspree) + SMS/marketing opt-ins + privacy/analytics update
+- `submitLead()` is no longer a cosmetic demo — it now POSTs JSON to Formspree `https://formspree.io/f/mnjrbgzp`
+  (the marketing site's form → info@fastinsights.io), capturing name + opt-in email/phone + consent flags. Honest UX:
+  "Signing you up..." → success on 200, or a mailto:info@fastinsights.io fallback link on failure. Resets fields on success.
+- Lead form: relaxed required fields to first name + valid email (last name optional); added **two new opt-in checkboxes** —
+  `lead_sms` (also text me; needs a phone) and `lead_marketing` (occasional tips/updates), kept `lead_remind` (due-date emails)
+  and `lead_cpa`. Softened "email + text every day" copy to "before each due date."
+- Privacy banner + footer disclaimer rewritten: calculator stays 100% client-side (tax figures never sent); **the only thing
+  saved is the opt-in email/phone**, used to send reminders/updates from info@fastinsights.io (never sold/shared); added an
+  **analytics note** (anonymous aggregate usage/clicks, never personal or tax data); employer-layout localStorage caveat kept.
+- Verified in-browser (fetch stubbed, no real submission): all 4 checkboxes render; POST goes to the Formspree endpoint with
+  the correct payload; success message fires; banner/disclaimer updated; no console errors.
+- **NOT built yet:** automated *sending* of the scheduled reminders (needs backend/cron + email/SMS like Twilio). Signups are
+  currently captured to info@fastinsights.io, not auto-sent. Do a live test signup after deploy; if cross-domain submits bounce,
+  allow estimated-taxes.vercel.app in the Formspree form's settings.
+
+
 ## 2026-06-23 - Add explicit privacy statement (no server / no database; client-side only)
 - Green **privacy banner** at the top of the page + a reinforcing line in the footer `.disclaimer` + a "100% private"
   tag in the header subtitle: no server/database, nothing uploaded or stored online, the figures you type are not saved

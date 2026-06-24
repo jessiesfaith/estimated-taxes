@@ -48,10 +48,14 @@ Covers, for **federal + all 50 states + DC**:
 - **Disclaimer** leads with: state rates are from each state's tax agency and **subject to change**; everything is an
   **estimate only and may not be correct** — verify with the IRS + your state's tax site.
 - Public page is **self-contained & unbranded** (no Fast Insights links/branding; repo docs not served — see below).
-- **Privacy:** the page states (banner at top + footer disclaimer + header tag) that there is **no server/database**,
-  nothing is uploaded/stored online, typed figures aren't saved (gone on close/refresh), and clearing browser data wipes
-  anything local. This is **accurate**: the ONLY persistence is `localStorage` key `fi_estimated_tax_templates_v1`
-  (`rememberEmployer()` saves `{employer, freq, mode}` — never amounts); no `fetch`/XHR/beacon; lead form is cosmetic.
+- **Privacy:** the **calculator** is fully client-side — income/withholding/tax figures are never sent (only `localStorage`
+  key `fi_estimated_tax_templates_v1` from `rememberEmployer()` = `{employer, freq, mode}`, never amounts). The **reminders
+  form is now LIVE** (`submitLead()` POSTs JSON to Formspree `https://formspree.io/f/mnjrbgzp` → info@fastinsights.io),
+  saving the opt-in email/phone + consent flags (`dueDateReminders`/`textReminders`/`marketingOptIn`/`cpaInterest`). Banner +
+  footer disclaimer updated to say so + an analytics note (anonymous aggregate usage, never personal/tax data). **STILL TODO
+  (not built):** the automated *sending* of the scheduled reminders (needs a backend/cron + email/SMS provider e.g. Twilio) —
+  right now signups are only **captured** to info@fastinsights.io, not auto-sent. Formspree endpoint is the marketing site's
+  form (mnjrbgzp); if cross-domain submits bounce, allow estimated-taxes.vercel.app in Formspree settings.
 
 ## Architecture (where things live in index.html)
 - **Tax constants:** `TAX_BY_YEAR[2026]` (federal + `ca` blocks); roll a new year by copying the block.
