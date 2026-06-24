@@ -1,40 +1,30 @@
 # ACTIVE_REQUEST
 
-_Last updated: 2026-06-07_
+_Last updated: 2026-06-24_
 
 ## Current active request
-Initialize the agent-state workflow for Estimated_taxes (seed agent-state/ + CLAUDE.md; verify deploy).
+Clean & handoff (after the LinkedIn-launch work: state-name labels, Field Guide, privacy statement, live reminders).
 
 ## Acceptance criteria
-- [x] agent-state/ seeded (8 files) from verified repo + Vercel state.
-- [x] CLAUDE.md created (repo facts + pointer to ~/.claude/CLAUDE.md).
-- [x] Deployment checked via Vercel MCP + live URL (READY + 200).
-- [x] Confirmed it IS a git repo (earlier "not git" was a OneDrive false-negative).
+- [x] Code scanned for dead/leftover — grep clean + 2-agent adversarial scan; removed the one finding (unused `.source-head` CSS).
+- [x] Wiring sanity-check of all 4 session features = no issues.
+- [x] Self-test all pass (45); no console errors; prod 200.
+- [x] All agent-state docs refreshed to current truth (git-push deploy; all 50 states; field guide; privacy; reminders live).
+- [x] Working tree committed & pushed.
 
 ## Status
-- Implementation: complete
-- Verification: complete (prod READY + 200; no app code changed)
-- Deployment: unchanged (CLI-deployed; prod READY)
-- Obsidian: target recorded (notes lazily created on first /cleanup-handoff)
-- **Overall: COMPLETE**
+- **Overall: COMPLETE — clean & handed off (2026-06-24).** Nothing mid-flight.
 
----
-
-## Most recent request (2026-06-23)
-**Request:** Make the state NAME follow the selected state in every UI label/note (resolve the deferred cosmetic issue);
-use the generic word "state" where it's easier/more correct, but prefer the state name.
-**Acceptance criteria:**
-- [x] All previously-hardcoded "California"/"CA" visible text retitles to the selected state (input notes, labels,
-      table headers, worksheet label, live result summaries, Mexico note, PDF footer, bottom-line).
-- [x] Behavior-dependent claims stay correct (SS note branches on `taxesSS`; CA-only NOL suspension & DE-4 hidden for
-      other states; no-tax states say "no state income tax").
-- [x] Math unchanged: self-test all pass (45 cases, 0 fail); no console errors; CA byte-identical.
-- [x] Deployed (git push → Vercel) and live (estimated-taxes.vercel.app = 200, new markers served).
-**Files involved:** `index.html` (new `updateStateLabels()` + span/id hooks + summary signatures).
-**Status:** COMPLETE & deployed (commit `1099d91`).
+## Session summary (2026-06-23/24)
+1. State-name labels follow the selected state everywhere (commit `1099d91`).
+2. In-app Field Guide — right pane, 75 fields, broad/example/detail + focus-sync (`98ee02c`).
+3. Explicit privacy statement — banner + footer disclaimer + header tag (`88fb1d3`).
+4. Reminders signup wired LIVE to Formspree -> info@fastinsights.io + SMS/marketing opt-ins + analytics note (`7a42acd`). Capture only; automated SENDING still TODO.
+5. Clean & handoff: removed dead `.source-head` CSS; refreshed all agent-state docs.
+Plus LinkedIn launch assets (post copy, 30s video MP4, brand banners, Gantt/Tracker/Template/Checklist workbook) in `00 Command Center`.
 
 ## Next request goes here (overwrite this block when you start real work)
 **Request:** _(describe the next change)_
 **Acceptance criteria:** _(bullets)_
-**Files likely involved:** _(rg/search first; the whole tool is index.html)_
+**Files likely involved:** _(the whole tool is index.html)_
 **Status:** not started

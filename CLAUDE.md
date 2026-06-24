@@ -8,7 +8,9 @@ Generic workflow rules live in `~/.claude/CLAUDE.md` (they apply to every repo).
   many income types: W-2/paystub, 1099 self-employment, Social Security, investment income (interest/dividends/cap
   gains with preferential LTCG/QDI rates), passive rental (US + Mexico ISR), Schedule K-1, plus QBI, NIIT, addl
   Medicare, and NOL carryforward. Generic state engine (`STATES` + `STATE_DATA`/`buildStates`). All client-side; no
-  accounts; nothing uploaded. Public page is self-contained/unbranded. **See `agent-state/HANDOFF.md` for the full map.**
+  accounts; nothing uploaded. Public page is self-contained/unbranded. Adds an in-app **Field Guide** (📘 right-pane, 75-field help; content in a `<script id="guideData">` JSON block) and a
+**LIVE reminders signup** (`submitLead()` POSTs to Formspree `/f/mnjrbgzp` → info@fastinsights.io — capture only; automated
+SENDING not built). **See `agent-state/HANDOFF.md` for the full map.**
 - **Package manager / framework:** none. Vanilla HTML/CSS/JS, no `package.json`, no build step.
 - **Key file:** `index.html` (~195 KB -- the entire tool: inlined CSS + JS + state data). Verify edits with the
   in-app **Run self-test** button (49 cases).

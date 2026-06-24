@@ -1,51 +1,56 @@
-# CURRENT_STATE - Estimated Taxes (W-2 Estimated Tax & Safe-Harbor Tool)
+# CURRENT_STATE — Estimated Taxes (Estimated Tax & Safe-Harbor Tool)
 
-_Last updated: 2026-06-23_
+_Last updated: 2026-06-24_
 
 ## Purpose
-Single-page static tool that estimates **federal + all-50-states (+ DC)** income tax and **safe-harbor**
-payment thresholds (to avoid underpayment penalties), across many income types (wages, 1099/SE, Social
-Security, investment income, rental incl. Mexico, K-1, with QBI/NIIT/NOL). Fully client-side; no backend,
-no accounts, no data leaves the browser. **Full map: `agent-state/HANDOFF.md`.**
+Single-page static tool that estimates **federal + all 50 states (+ DC)** income tax and the **safe-harbor**
+quarterly target (to avoid the IRS underpayment penalty), across many income types (W-2/paystub, 1099/SE, Social
+Security, investment income, rental incl. Mexico, K-1, with QBI/NIIT/NOL). Calculator is fully client-side — tax
+figures never leave the browser. Adds an in-app **Field Guide** (right pane, per-field help) and a **live reminders
+signup** (captures opt-in email/phone via Formspree → info@fastinsights.io). **Full map: `agent-state/HANDOFF.md`.**
 
 ## Stack
-- **Framework:** none (vanilla HTML/CSS/JS).
-- **Package manager:** none (no `package.json`).
-- **Key file:** `index.html` (~195 KB - the entire tool, incl. inlined 50-state data). Verify with the in-app self-test.
+- **Framework / package manager:** none (vanilla HTML/CSS/JS, no build).
+- **Key file:** `index.html` — the entire tool (inlined CSS + JS + 50-state data + field-guide JSON). Verify with the in-app self-test.
 
 ## Commands
 | Purpose | Command |
 |---|---|
-| Local dev | `python -m http.server 8000` -> http://localhost:8000 |
-| Build / test / lint / typecheck | none configured |
-| Deploy (prod) | `npx vercel --prod` (Vercel CLI - deploys the working folder) |
+| Local dev | `npx http-server . -p 8124` → http://localhost:8124 (python not installed) |
+| Build / lint | none |
+| Test | in-app **Run self-test** = **45 cases**, all must pass |
+| Deploy (prod) | `git push origin main` → Vercel auto-deploys (git-connected) |
 
-## Key behavior
-- One page; income inputs -> estimated annual/quarterly federal + CA tax + safe-harbor target. All computation in JS.
-- Income sections (each a collapsible card group): W-2/paystub sources, 1099 self-employment, **Social Security**
-  (taxed up to 85% fed / 0% CA + FICA & excess-SS-credit tracking), **investment income** (interest, ordinary +
-  qualified dividends, LT + ST gains — federal 0/15/20% preferential rates, CA ordinary), **passive rental
-  (Schedule E, US + Mexico)** with the $25k loss allowance + 3.8% NIIT, **Schedule K-1** (partnership/S-corp/trust),
-  and the **§199A QBI deduction** (federal only). Mexico rental also estimates Mexican ISR (25% of gross) shown
-  separately. Federal preferential rates / QBI never touch the CA computation. (Added 2026-06-22 - see CHANGE_LOG.)
-- No persistence beyond the browser session.
+## Key behavior (current)
+- Federal + chosen-state estimate; live recompute on input/state/filing change; the state selector retitles every label.
+- Income: W-2/paystub (project / YTD / W-2), 1099/SE (+mileage, SE tax), Social Security (Pub-915), investment
+  (interest / dividends / LTCG-STCG at preferential rates), rental (Schedule E + Mexico ISR), K-1, QBI, NOL.
+- Output: 90/100/110% safe-harbor target, refund/shortfall, per-paycheck adjustment, quarterly schedule + due dates,
+  full progressive-rate breakdown, PDF/CSV.
+- **Field Guide:** right-pane panel (📘 header button + floating button) explaining all 75 fields (broad / example /
+  granular), with search + focus-sync; content lives in a `<script type="application/json" id="guideData">` block.
+- **Privacy:** calculator 100% client-side (tax figures never sent); only persistence is the optional employer-layout
+  localStorage (`fi_estimated_tax_templates_v1`, never amounts). Banner + footer disclaimer + analytics note on the page.
+- **Reminders signup:** `submitLead()` POSTs to Formspree `https://formspree.io/f/mnjrbgzp` → info@fastinsights.io,
+  capturing opt-in email/phone + consent flags (due-date / SMS / marketing / CPA). **Capture only — automated SENDING
+  of reminders is NOT built** (future: cron + email/SMS, e.g. Supabase Edge Function + Resend for email, Twilio for SMS).
 
 ## Git
-- Branch `main`, **1 commit** (`642f95e`, "Initialize repo: W-2 estimated-tax & safe-harbor tool",
-  2026-06-06). Clean working tree. **No remote** (local-only repo).
+- Branch `main`; remote `origin = git@github-jessica:jessiesfaith/estimated-taxes.git` (SSH alias `github-jessica`,
+  Jessica's key — the machine's HTTPS cred is Chris's and can't push here). **Push-to-deploy connected.** Latest commit: `git log -1`.
 
 ## Deploy
-- **Vercel CLI** (`npx vercel --prod`), project `estimated-taxes`. NOT git auto-deploy (no GitHub
-  connection). Production: https://estimated-taxes.vercel.app (200) + app.fastinsights.io/estimated-taxes.
+- **Git-connected Vercel** (`git push origin main` → auto). Prod: https://estimated-taxes.vercel.app (200) +
+  https://app.fastinsights.io/estimated-taxes (proxied by the fast-insights-app project).
 
 ## Known notes / risks
-- **Privacy-critical:** personal docs (paystubs, PDFs, images) are git+vercel-ignored. Do not commit
-  or deploy them. A real `Paycheck_2026-05-31.pdf` sits in the folder (ignored).
-- No automated tests - manual verification only.
-- Deploys are CLI/manual (no auto-deploy) - remember to `npx vercel --prod` after changes.
-- OneDrive Files-On-Demand: `.git` and other files may be dehydrated placeholders; retry reads once.
+- Privacy-critical: personal docs (paystubs/PDFs/images) are git+vercel-ignored — never commit/deploy them
+  (`.vercelignore` ships only `index.html`).
+- No automated tests beyond the in-app 45-case self-test — run it after edits.
+- Reminders are capture-only; do a live test signup; if a cross-domain POST bounces, allow `estimated-taxes.vercel.app`
+  in the Formspree form settings.
+- OneDrive Files-On-Demand: `.git`/files may be cloud placeholders — retry reads once.
 
 ## Repo
 - Path: `01 Projects/Fast Insights/10 Code Repos/Estimated_taxes` (inside the Builder_OS vault)
-- Remote: none yet
-- Branch: `main`
+- Remote: `github.com/jessiesfaith/estimated-taxes` · Branch: `main`

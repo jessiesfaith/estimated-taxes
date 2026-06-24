@@ -20,4 +20,4 @@ requirements | architecture | deployment | product decisions | user-facing behav
 trivial mechanical edits unless they matter later. NEVER copy personal tax documents into the vault.
 
 ## Last Obsidian update summary
-2026-06-07 - Workflow initialized; target folder recorded. No vault notes written yet (lazy on first handoff).
+2026-06-24 - Clean & handoff. Meaningful changes this session: state-name labels, in-app Field Guide, explicit privacy statement, LIVE reminders signup (Formspree -> info@fastinsights.io, capture only). Deployed (git push) & verified 200. agent-state/*.md are the source of truth; no separate vault notes written.

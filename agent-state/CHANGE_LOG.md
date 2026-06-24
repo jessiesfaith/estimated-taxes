@@ -2,6 +2,15 @@
 
 Newest first. Keep entries to a few bullets - no long logs.
 
+## 2026-06-24 - Clean & handoff
+- Adversarial 2-agent cleanliness scan: file is clean. Removed the one finding — unused `.source-head` / `.source-head strong`
+  CSS (leftover from an old card-header layout; cards now use `summary.collapse-head`). No behavior change.
+- Wiring sanity-check of all 4 session features = no issues (state-name labels, Field Guide, privacy, reminders all correctly
+  wired; `guideData` JSON valid = 11 sections / 75 keys; no duplicate ids).
+- Verified: self-test all pass (45); no console errors; prod 200.
+- Refreshed every agent-state doc to current truth (deploy = git push auto-deploy; federal + all 50 states; field guide;
+  privacy; reminders live): CURRENT_STATE, DEPLOYMENT_STATUS, VERIFICATION_STATUS, ACTIVE_REQUEST, NEXT_SESSION_PROMPT, OBSIDIAN_SYNC, HANDOFF.
+
 ## 2026-06-23 - Reminders signup wired LIVE (Formspree) + SMS/marketing opt-ins + privacy/analytics update
 - `submitLead()` is no longer a cosmetic demo — it now POSTs JSON to Formspree `https://formspree.io/f/mnjrbgzp`
   (the marketing site's form → info@fastinsights.io), capturing name + opt-in email/phone + consent flags. Honest UX:

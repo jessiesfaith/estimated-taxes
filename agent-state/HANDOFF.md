@@ -1,10 +1,12 @@
 # HANDOFF
 
-_Last updated: 2026-06-23_
+_Last updated: 2026-06-24_
 
 ## Active request status
-**COMPLETE** (the deferred cosmetic issue is now FIXED in the working tree; verified in-browser). Awaiting deploy
-decision / next change. Math remains correct for every state; the state NAME now follows the selected state everywhere.
+**COMPLETE — clean & handed off (2026-06-24).** Shipped & deployed this session: (1) state-name labels follow the selected
+state; (2) in-app Field Guide; (3) explicit privacy statement; (4) LIVE reminders signup (Formspree → info@fastinsights.io,
+capture only). Self-test all pass (45); prod 200; working tree clean & in sync. Nothing mid-flight. Biggest next item: the
+automated reminder SENDER (capture is live; sending is not — cron + email/SMS).
 
 ## RESOLVED — state name follows the selected state in every label/note (2026-06-23)
 The previously-hardcoded "California"/"CA" UI text now retitles to the selected state. Mechanism: a new
